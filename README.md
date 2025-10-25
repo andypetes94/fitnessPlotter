@@ -1,6 +1,6 @@
 # Garmin TCX Activity Plotter
 
-This R script processes Garmin `.tcx` running activity files and generates performance charts for each run. It is designed to work from the command line, taking one or more `.tcx` files as input and producing a set of PNG charts per activity.
+This Plot_Runs.R script processes Garmin `.tcx` running activity files and generates performance charts for each run. It is designed to work from the command line, taking one or more `.tcx` files as input and producing a set of PNG charts per activity.
 
 ---
 
@@ -37,7 +37,7 @@ For each running activity, the script generates **four charts**:
 Run the script from the terminal:
 
 ```bash
-Rscript example_script.R <tcx_files> <output_root>
+Rscript Plot_Runs.R <tcx_files> <output_root>
 ```
 
 - `<tcx_files>`: One or more `.tcx` files (e.g., `./activities/*.tcx`)  
@@ -46,7 +46,7 @@ Rscript example_script.R <tcx_files> <output_root>
 ### Example:
 
 ```bash
-Rscript example_script.R ./activities/*.tcx ./Charts
+Rscript Plot_Runs.R ./activities/*.tcx ./Charts
 ```
 
 This will create a folder structure like:
@@ -85,7 +85,7 @@ init()
 3. **Test with the included sample activity:**
 
 ```bash
-Rscript example_script.R ./activities/2025-10-01T11/23/52+00/00_20556010525.tcx ./Charts
+Rscript Plot_Runs.R ./activities/2025-10-01T11/23/52+00/00_20556010525.tcx ./Charts
 ```
 
 This will generate the four charts for the sample activity in `./Charts/2025-10-01T11_23_52+00_00_20556010525/`.

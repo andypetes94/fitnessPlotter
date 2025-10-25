@@ -2,19 +2,19 @@
 
 # ---- Parse command-line arguments ----
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2) stop("Usage: Rscript example_script.R <tcx_files> <output_root>")
+if (length(args) < 2) stop("Usage: Rscript Plot_Runs.R <tcx_files> <output_root>")
 
 # Print help if no args or --help is provided
 if (length(args) == 0 || args[1] %in% c("-h", "--help")) {
   cat("
-Usage: Rscript example_script.R <tcx_files> <output_root>
+Usage: Rscript Plot_Runs.R <tcx_files> <output_root>
 
 Arguments:
   <tcx_files>   One or more .tcx files (or wildcard like ./activities/*.tcx)
   <output_root> Directory where charts will be saved
 
 Example:
-  Rscript example_script.R ./activities/*.tcx ./Charts
+  Rscript Plot_Runs.R ./activities/*.tcx ./Charts
 \n")
   quit(save = "no")
 }
