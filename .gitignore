@@ -1,0 +1,31 @@
+# Garmin TCX Plotter .gitignore
+
+# RStudio project files
+
+.Rproj.user/
+
+# macOS system files
+
+.DS_Store
+
+# R session files
+
+.Rhistory
+.RData
+.Ruserdata
+
+# Generated output folders
+
+Charts/
+
+# large or private TCX files (if you have more than sample activity)
+
+activities/*.tcx
+!activities/2025-10-01T11/23/52+00/00_20556010525.tcx  # keep the sample activity
+
+# Logs or temporary files
+
+*.log
+*.tmp
+*.cache
+
