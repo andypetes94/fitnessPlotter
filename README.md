@@ -22,7 +22,7 @@ R -e "shiny::runApp('app.R')"
 
 ---
 
-## Features
+## 🎨 Features
 
 1. **Kilometre Split Chart**: Bar chart displaying pace (duration per kilometre).
 2. **Average Heart Rate Line Chart**: Line chart showing average heart rate per kilometre with points.
@@ -34,7 +34,7 @@ R -e "shiny::runApp('app.R')"
    * Other: Gray
 4. **Combined Chart**: All three charts stacked vertically.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 .Rproj.user/
@@ -54,7 +54,7 @@ garminPlots.Rproj
 * `activities/` - sample Garmin TCX files.
 * `R/init.R` - helper to install and load required packages.
 
-## Getting Started
+## ⚙ Getting Started
 
 ### 1. Clone the repository
 
@@ -104,32 +104,11 @@ A sample activity is included for testing:
 activities/2025-10-01T11/23/52+00/00_20556010525.tcx
 ```
 
-## Notes
+## 📘 Notes
 
 * `R/init.R` ensures all packages including `shiny`, `ggplot2`, `patchwork`, `xml2`, and `fontawesome` are installed.
 * Plots dynamically adjust sizes based on the total distance of the run.
 * Font Awesome is used for icons in plot subtitles (install locally if needed).
-
----
-
-## ⚙️ Installation & Setup
-
-1. Clone or download the repository.
-
-   ```bash
-   git clone https://github.com/yourusername/garminPlots.git
-   cd garminPlots
-   ```
-
-2. Install required R packages:
-
-   ```r
-   install.packages(c(
-     "xml2", "dplyr", "ggplot2", "tidyverse", "patchwork",
-     "showtext", "ggtext", "shadowtext", "ggborderline",
-     "fontawesome", "rvest", "shiny", "shinycssloaders"
-   ))
-   ```
 
 ---
 
