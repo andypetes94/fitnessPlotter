@@ -1,0 +1,27 @@
+{
+    "id": "36ED5F6B",
+    "path": "~/Desktop/Garmin/garminPlots/R/init.R",
+    "project_path": "R/init.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1761392142244.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "12,3",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1761392232,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1761392232874,
+    "read_only": false,
+    "read_only_alternatives": []
+}
