@@ -162,9 +162,9 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
 plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes) {
   ggplot(hr_df_avg, aes(x = kilometre, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
     geom_vline(xintercept = seq(0.5, 100, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 171, ymax = 190), fill = "#D91656", alpha = 0.05, show.legend = F) +
+    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
+    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
+    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
     geom_line(group = 1, color = 'black', linewidth = sizes$geom_line_width, alpha = 0.2) +
     geom_line(group = 1, color = 'white', linewidth = (sizes$geom_line_width * (2/3))) +
     geom_point(shape = 21, size = sizes$geom_point_size, color = "white", stroke = sizes$geom_point_stroke, show.legend = F) +
