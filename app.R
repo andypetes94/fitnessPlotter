@@ -55,7 +55,7 @@ ui <- fluidPage(
            tags$h2(
              HTML("<i class='fa-solid fa-person-running title-icon'></i> Garmin Run Visualiser"),
              class = "text-center mb-4 fw-bold",
-             style = "margin-top: 20px; color: black;"  # <-- adds space above
+             style = "margin-top: 20px; color: navy;"  # <-- adds space above
            ),
            tags$p(
              "Upload a Garmin .tcx file to visualize your run performance.",
@@ -116,80 +116,80 @@ ui <- fluidPage(
 # --- Server ---
 server <- function(input, output, session) {
   
+  # Define the reactive value to store the current file path
+  current_file <- reactiveVal()
+  
+  # Auto-load default file on app startup
+  observe({
+    default_path <- "./activities/2025-10-01T11:23:52+00:00_20556010525.tcx"
+    if (file.exists(default_path) && is.null(current_file())) {
+      current_file(default_path)
+    }
+  })
+  
+  # Handle file upload
+  observe({
+    req(input$tcx_file)
+    current_file(input$tcx_file$datapath)
+  })
+  
   # Reactive to read TCX file
   run_data <- reactive({
-    # If user uploaded a file, use it
-    if (!is.null(input$tcx_file)) {
-      read_tcx_data(input$tcx_file$datapath)
-    } else {
-      # Default sample file
-      read_tcx_data("activities/2025-10-01T11:23:52+00:00_20556010525.tcx")
-    }
+    req(current_file())
+    read_tcx_data(current_file())
+  })
+  
+  # Reactive: summarize data for plots
+  run_summaries <- reactive({
+    rd <- run_data()
+    max_km <- max(ceiling(rd$distance / 1000), na.rm = TRUE)
+    sizes <- get_plot_sizes(max_km)
+    total_seconds <- max(rd$time_elapsed, na.rm = TRUE)
+    total_time_formatted <- format_total_time(total_seconds)
+    start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
+    summaries <- summarize_run_data(rd)
+    list(rd = rd, sizes = sizes, total_time_formatted = total_time_formatted,
+         start_date = start_date, max_km = max_km,
+         km_splits = summaries$km_splits,
+         hr_df_avg = summaries$hr_df_avg,
+         hr_stacked_bar = summaries$hr_stacked_bar)
   })
   
   # Display activity info
   output$activity_info <- renderUI({
-    rd <- run_data()
-    total_time <- max(rd$time_elapsed, na.rm = TRUE)
-    dist_km <- round(max(rd$distance, na.rm = TRUE) / 1000, 2)
+    req(run_summaries())
+    rs <- run_summaries()
+    dist_km <- round(max(rs$rd$distance, na.rm = TRUE) / 1000, 2)
     tags$div(class = "text-center text-success fw-bold mb-4",
-             paste("✅ Loaded", dist_km, "km activity —",
-                   "Total Time:", sprintf("%02d:%02d", total_time %/% 60, round(total_time %% 60)))
+             paste("✅ Loaded", dist_km, "km activity — Total Time:", rs$total_time_formatted)
     )
   })
   
-  # Plots remain the same
+  # Generate plots
   output$pace_plot <- renderPlot({
-    rd <- run_data()
-    km_splits <- summarize_run_data(rd)$km_splits
-    sizes <- get_plot_sizes(max(ceiling(rd$distance / 1000)))
-    
-    total_seconds <- max(rd$time_elapsed, na.rm = TRUE)
-    total_time_formatted <- format_total_time(total_seconds)
-    start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
-    
-    plot_km_splits(km_splits, total_time_formatted, start_date, sizes)
+    req(run_summaries())
+    rs <- run_summaries()
+    plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes)
   })
   
   output$hr_line_plot <- renderPlot({
-    rd <- run_data()
-    hr_df_avg <- summarize_run_data(rd)$hr_df_avg
-    sizes <- get_plot_sizes(max(ceiling(rd$distance / 1000)))
-    total_time_formatted <- format_total_time(max(rd$time_elapsed, na.rm = TRUE))
-    start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
-    
-    plot_hr_line(hr_df_avg, total_time_formatted, start_date,
-                 max(ceiling(rd$distance / 1000)), sizes)
+    req(run_summaries())
+    rs <- run_summaries()
+    plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes)
   })
   
   output$hr_stacked_plot <- renderPlot({
-    rd <- run_data()
-    hr_stacked_bar <- summarize_run_data(rd)$hr_stacked_bar
-    sizes <- get_plot_sizes(max(ceiling(rd$distance / 1000)))
-    total_time_formatted <- format_total_time(max(rd$time_elapsed, na.rm = TRUE))
-    start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
-    
-    plot_hr_stacked(hr_stacked_bar, total_time_formatted, start_date, sizes)
+    req(run_summaries())
+    rs <- run_summaries()
+    plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes)
   })
   
   output$combined_plot <- renderPlot({
-    rd <- run_data()
-    sizes <- get_plot_sizes(max(ceiling(rd$distance / 1000)))
-    total_time_formatted <- format_total_time(max(rd$time_elapsed, na.rm = TRUE))
-    start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
-    max_km <- max(ceiling(rd$distance / 1000))
-    
-    # Generate individual plots
-    p_pace <- plot_km_splits(summarize_run_data(rd)$km_splits,
-                             total_time_formatted, start_date, sizes)
-    
-    p_hr_line <- plot_hr_line(summarize_run_data(rd)$hr_df_avg,
-                              total_time_formatted, start_date, max_km, sizes)
-    
-    p_hr_stacked <- plot_hr_stacked(summarize_run_data(rd)$hr_stacked_bar,
-                                    total_time_formatted, start_date, sizes)
-    
-    # Combine
+    req(run_summaries())
+    rs <- run_summaries()
+    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes)
+    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes)
+    p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes)
     combine_run_plots(p_pace, p_hr_line, p_hr_stacked)
   })
   
