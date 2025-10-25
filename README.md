@@ -22,21 +22,93 @@ R -e "shiny::runApp('app.R')"
 
 ---
 
-## 📁 Project Structure
+## Features
+
+1. **Kilometre Split Chart**: Bar chart displaying pace (duration per kilometre).
+2. **Average Heart Rate Line Chart**: Line chart showing average heart rate per kilometre with points.
+3. **Heart Rate Zones Stacked Chart**: Stacked bar chart showing proportion of time spent in different heart rate zones:
+
+   * Zone 5: Red
+   * Zone 4: Orange
+   * Zone 3: Yellow
+   * Other: Gray
+4. **Combined Chart**: All three charts stacked vertically.
+
+## Project Structure
 
 ```
-garminPlots/
-├── R/
-│   └── Plot_Runs.R          # Modular helper functions (data parsing + plotting)
-├── activities/              # Example input TCX files
-│   └── example.tcx
-├── app.R                    # Shiny app for interactive visualisation
-├── Plot_Runs.R              # Command-line script (batch processor)
-├── README.md
-├── garminPlots.Rproj
-├── init.R
-└── .gitignore
+.Rproj.user/
+R/
+activities/
+.DS_Store
+.Rhistory
+Plot_Runs.R
+README.md
+app.R
+garminPlots.Rproj
 ```
+
+* `R/Plot_Runs.R` - functions for parsing TCX, summarising, and plotting.
+* `Plot_Runs.R` - command-line script for batch processing activities.
+* `app.R` - Shiny app to interactively visualise a single TCX file.
+* `activities/` - sample Garmin TCX files.
+* `R/init.R` - helper to install and load required packages.
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/yourusername/fitnessPlotter.git
+cd fitnessPlotter
+```
+
+### 2. Install dependencies
+
+Open R or RStudio in the project directory and run:
+
+```r
+source("R/init.R")  # loads the init() function
+init()               # installs and loads all required packages
+```
+
+### 3. Command-Line Usage
+
+Generate charts from Garmin `.tcx` files:
+
+```bash
+Rscript Plot_Runs.R ./activities/*.tcx ./Charts
+```
+
+* Creates a folder `./Charts/<activity_name>/` for each activity.
+* Saves 4 PNG files: pace, HR line, HR stacked, combined chart.
+
+### 4. Shiny App
+
+Launch the interactive app:
+
+```r
+library(shiny)
+runApp("app.R")
+```
+
+* Upload a `.tcx` file
+* Visualise pace, heart rate, and HR zones
+* Download individual plots or the combined chart
+
+### 5. Example Activity
+
+A sample activity is included for testing:
+
+```
+activities/2025-10-01T11/23/52+00/00_20556010525.tcx
+```
+
+## Notes
+
+* `R/init.R` ensures all packages including `shiny`, `ggplot2`, `patchwork`, `xml2`, and `fontawesome` are installed.
+* Plots dynamically adjust sizes based on the total distance of the run.
+* Font Awesome is used for icons in plot subtitles (install locally if needed).
 
 ---
 
