@@ -37,15 +37,18 @@ R -e "shiny::runApp('app.R')"
 ## 📁 Project Structure
 
 ```
-.Rproj.user/
-R/
-activities/
-.DS_Store
-.Rhistory
-Plot_Runs.R
-README.md
-app.R
-garminPlots.Rproj
+fitnessPlotter/
+├── R/ # Contains function library
+│ └── Plot_Runs.R # Core functions for parsing and plotting
+│ └── init.R # Initialization script for installing/loading dependencies
+├── activities/ # Sample Garmin .tcx activities
+│ └── 2025-10-01T11_23_52+00_00_20556010525.tcx
+├── app.R # Shiny app for interactive visualisation
+├── README.md # This file
+├── .Rproj.user/ # RStudio project files (usually ignored in Git)
+├── Plot_Runs.R # CLI script to generate plots from .tcx files
+├── GarminPlots.Rproj # RStudio project file
+└── .gitignore # Recommended to ignore .Rproj
 ```
 
 * `R/Plot_Runs.R` - functions for parsing TCX, summarising, and plotting.
@@ -72,31 +75,7 @@ source("R/init.R")  # loads the init() function
 init()               # installs and loads all required packages
 ```
 
-### 3. Command-Line Usage
-
-Generate charts from Garmin `.tcx` files:
-
-```bash
-Rscript Plot_Runs.R ./activities/*.tcx ./Charts
-```
-
-* Creates a folder `./Charts/<activity_name>/` for each activity.
-* Saves 4 PNG files: pace, HR line, HR stacked, combined chart.
-
-### 4. Shiny App
-
-Launch the interactive app:
-
-```r
-library(shiny)
-runApp("app.R")
-```
-
-* Upload a `.tcx` file
-* Visualise pace, heart rate, and HR zones
-* Download individual plots or the combined chart
-
-### 5. Example Activity
+### 3. Example Activity
 
 A sample activity is included for testing:
 
