@@ -6,8 +6,10 @@ You can use this package in **two ways**:
 1. 📊 From the **command line** using `Plot_Runs.R`
 2. 🌐 Interactively via the **Shiny web app** (`app.R`)
 
-## 📊 Example Output
-![Combined](docs/combined.png)
+Web Application has been deployed and can be found 👇: 
+
+[Shiny web app](https://andypetes.shinyapps.io/fitnessPlotter/)
+
 ---
 
 ## ⚡️ Quick Start
