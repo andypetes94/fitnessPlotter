@@ -1,4 +1,4 @@
-# 🏃‍♂️ Garmin Run Visualszer
+# 🏃‍♂️ Garmin Run Visualiser
 
 This project parses and visualises **Garmin `.tcx` activity files**, producing clean and informative charts of your **running performance** — including heart rate zones, pace splits, and combined visual summaries.  
 
