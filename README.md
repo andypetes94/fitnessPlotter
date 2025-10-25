@@ -7,7 +7,7 @@ You can use this package in **two ways**:
 2. 🌐 Interactively via the **Shiny web app** (`app.R`)
 
 ## 📊 Example Output
-![Combined](docs/2025-10-01T11/23/52+00/00_20556010525_combined.png)
+![Combined](docs/combined.png)
 ---
 
 ## ⚡️ Quick Start
@@ -115,10 +115,10 @@ Below are sample output charts generated from a sample `.tcx` file:
 
 | Chart Type | Example |
 |-------------|----------|
-| Pace Splits | ![Pace Splits](docs/2025-10-01T11/23/52+00/00_20556010525_pace.png) |
-| HR Line | ![HR Line](docs/2025-10-01T11/23/52+00/00_20556010525_hr_line.png) |
-| HR Zones | ![HR Zones](docs/2025-10-01T11/23/52+00/00_20556010525_hr_stacked.png) |
-| Combined View | ![Combined](docs/2025-10-01T11/23/52+00/00_20556010525_combined.png) |
+| Pace Splits | ![Pace Splits](docs/pace.png) |
+| HR Line | ![HR Line](docs/hr_line.png) |
+| HR Zones | ![HR Zones](docs/hr_stacked.png) |
+| Combined View | ![Combined](docs/combined.png) |
 
 ---
 
