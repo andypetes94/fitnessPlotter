@@ -2,6 +2,9 @@
 
 This Plot_Runs.R script processes Garmin `.tcx` running activity files and generates performance charts for each run. It is designed to work from the command line, taking one or more `.tcx` files as input and producing a set of PNG charts per activity.
 
+### 📊 Example Output
+![Combined Chart](./docs/2025-10-01T11:23:52+00:00_20556010525_combined.png)
+
 ---
 
 ## 📦 Features
