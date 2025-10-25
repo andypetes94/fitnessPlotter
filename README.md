@@ -1,195 +1,180 @@
-# Garmin TCX Activity Plotter
+# 🏃‍♂️ Garmin Run Visualszer
 
-This Plot_Runs.R script processes Garmin `.tcx` running activity files and generates performance charts for each run. It is designed to work from the command line, taking one or more `.tcx` files as input and producing a set of PNG charts per activity.
+This project parses and visualises **Garmin `.tcx` activity files**, producing clean and informative charts of your **running performance** — including heart rate zones, pace splits, and combined visual summaries.  
 
-### 📊 Example Output
-![Combined Chart](./docs/2025-10-01T11:23:52+00:00_20556010525_combined.png)
+You can use this package in **two ways**:
+1. 📊 From the **command line** using `Plot_Runs.R`
+2. 🌐 Interactively via the **Shiny web app** (`app.R`)
 
+## 📊 Example Output
+![Combined](docs/2025-10-01T11/23/52+00/00_20556010525_combined.png)
 ---
 
-## 📦 Features
-
-For each running activity, the script generates **four charts**:
-
-1. **Kilometre Split Times (Top Chart)**  
-   - Bar chart showing the time taken for each kilometre.
-   - Helps identify faster or slower segments.
-
-2. **Heart Rate per Kilometre (Middle Chart)**  
-   - Line chart with points representing each kilometre.
-   - Displays the **average heart rate** on top of each point.
-   - Provides insight into effort distribution across the run.
-
-3. **Heart Rate Zones (Bottom Chart)**  
-   - Stacked bar chart showing the proportion of time spent in different heart rate zones.  
-   - Color coding:  
-     - Zone 1–2 / Other: Gray  
-     - Zone 3: Yellow  
-     - Zone 4: Orange  
-     - Zone 5: Red  
-
-4. **Combined Chart**  
-   - Vertically stacked version of the three charts above, saved as a single PNG for easy viewing.
-
-> **Note:** The script uses Font Awesome icons in plot titles. Ensure that the Font Awesome font is installed locally before running the script.
-
----
-
-## ⚙️ Usage
-
-Run the script from the terminal:
+## ⚡️ Quick Start
 
 ```bash
-Rscript Plot_Runs.R <tcx_files> <output_root>
+# Run from the command line (generate charts)
+Rscript Plot_Runs.R ./activities/*.tcx ./Charts
+
+# Or launch interactive Shiny app
+R -e "shiny::runApp('app.R')"
 ```
 
-- `<tcx_files>`: One or more `.tcx` files (e.g., `./activities/*.tcx`)  
-- `<output_root>`: Directory where the charts will be saved (will be created if it doesn’t exist)
+---
 
-### Example:
+## 📁 Project Structure
+
+```
+garminPlots/
+├── R/
+│   └── Plot_Runs.R          # Modular helper functions (data parsing + plotting)
+├── activities/              # Example input TCX files
+│   └── example.tcx
+├── app.R                    # Shiny app for interactive visualisation
+├── Plot_Runs.R              # Command-line script (batch processor)
+├── README.md
+├── garminPlots.Rproj
+├── init.R
+└── .gitignore
+```
+
+---
+
+## ⚙️ Installation & Setup
+
+1. Clone or download the repository.
+
+   ```bash
+   git clone https://github.com/yourusername/garminPlots.git
+   cd garminPlots
+   ```
+
+2. Install required R packages:
+
+   ```r
+   install.packages(c(
+     "xml2", "dplyr", "ggplot2", "tidyverse", "patchwork",
+     "showtext", "ggtext", "shadowtext", "ggborderline",
+     "fontawesome", "rvest", "shiny", "shinycssloaders"
+   ))
+   ```
+
+---
+
+## 🧩 Usage Options
+
+### 1️⃣ Command-line Script (`Plot_Runs.R`)
+
+Run the batch visualisation script directly from your terminal or RStudio Console:
 
 ```bash
 Rscript Plot_Runs.R ./activities/*.tcx ./Charts
 ```
 
-This will create a folder structure like:
+**Arguments:**
+| Argument | Description |
+|-----------|-------------|
+| `<tcx_files>` | One or more `.tcx` files, or a wildcard (e.g. `./activities/*.tcx`) |
+| `<output_root>` | Directory where the generated plots will be saved |
 
-```
-Charts/
-├── 2025-10-01T11_23_52+00_00_20556010525/
-│   ├── 2025-10-01T11_23_52+00_00_20556010525_hr.png
-│   ├── 2025-10-01T11_23_52+00_00_20556010525_km_splits.png
-│   ├── 2025-10-01T11_23_52+00_00_20556010525_hr_zones.png
-│   └── 2025-10-01T11_23_52+00_00_20556010525_combined.png
-```
+Each `.tcx` file produces:
+- `*_pace.png` – kilometre splits (pace duration)
+- `*_hr_line.png` – average heart rate by kilometre
+- `*_hr_stacked.png` – time spent in HR zones
+- `*_combined.png` – combined view of all three
 
 ---
 
-## 🏁 Getting Started
+### 2️⃣ Shiny Web App (`app.R`)
 
-1. **Clone the repository:**
-
-```bash
-git clone https://github.com/<username>/garminTCXPlotter.git
-cd garminTCXPlotter
-```
-
-2. **Initialize the R environment and install packages:**
-
-You can use the provided `init.R` script to install all required packages and load them automatically.
+For an interactive experience, launch the Shiny dashboard:
 
 ```r
-source("R/init.R")
-init()
+shiny::runApp("app.R")
 ```
 
-> This will install missing dependencies, load all packages, and check for Font Awesome availability.
+This opens a browser interface where you can:
+- Upload a **.tcx** file  
+- View 4 visualisations (pace, HR line, HR zones, combined)
+- Download any chart as a `.png` file
 
-3. **Test with the included sample activity:**
+#### 🧭 Navigation
+
+| Tab | Description |
+|------|-------------|
+| **Pace Splits** | Visualises pace per kilometre |
+| **Heart Rate** | Average HR by distance |
+| **Heart Rate Zones** | Stacked proportion of time in each HR zone |
+| **Combined** | All three charts arranged together |
+
+---
+
+## 📊 Sample Output
+
+Below are sample output charts generated from a sample `.tcx` file:
+
+| Chart Type | Example |
+|-------------|----------|
+| Pace Splits | ![Pace Splits](docs/2025-10-01T11/23/52+00/00_20556010525_pace.png) |
+| HR Line | ![HR Line](docs/2025-10-01T11/23/52+00/00_20556010525_hr_line.png) |
+| HR Zones | ![HR Zones](docs/2025-10-01T11/23/52+00/00_20556010525_hr_stacked.png) |
+| Combined View | ![Combined](docs/2025-10-01T11/23/52+00/00_20556010525_combined.png) |
+
+---
+
+## 🔍 Modular Design
+
+The plotting logic is defined in **`R/Plot_Runs.R`**, which provides the following key functions:
+
+| Function | Purpose |
+|-----------|----------|
+| `read_tcx_data(file)` | Parses a `.tcx` file into a tidy `tibble` |
+| `get_plot_sizes(max_km)` | Dynamically adjusts font and point sizes by distance |
+| `summarize_run_data(run_data)` | Computes HR summaries and kilometre splits |
+| `plot_hr_stacked(...)` | Creates stacked HR zone bar chart |
+| `plot_hr_line(...)` | Creates HR average line chart |
+| `plot_km_splits(...)` | Creates pace-per-kilometre chart |
+| `combine_run_plots(...)` | Combines the three plots vertically |
+
+---
+
+## 🧠 Tips
+
+- Ensure `.tcx` files include **latitude, longitude, heart rate**, and **distance** data.  
+- Non-running activities are automatically skipped.  
+- The app uses **Font Awesome** for icons — ensure it’s available via your system fonts or embedded through `{fontawesome}`.
+
+---
+
+## ✅ Example Workflow
 
 ```bash
-Rscript Plot_Runs.R ./activities/2025-10-01T11/23/52+00/00_20556010525.tcx ./Charts
+# 1. Generate charts for all activities
+Rscript Plot_Runs.R ./activities/*.tcx ./Charts
+
+# 2. View charts
+open Charts/2025-10-01T11_23_52+00_00_20556010525/
+
+# 3. Launch the Shiny app
+R -e "shiny::runApp('app.R')"
 ```
 
-This will generate the four charts for the sample activity in `./Charts/2025-10-01T11_23_52+00_00_20556010525/`.
-
 ---
 
-## ✅ Behavior
+## 🚀 Initialisation
 
-- Automatically **skips non-running activities** based on the `Sport` attribute in the `.tcx` file.  
-- Creates subdirectories for each activity within the specified output root.  
-- Handles Garmin TCX namespaces automatically to reliably detect activities.  
-- Uses icons from Font Awesome in plot titles for enhanced visualization.  
+This repository includes an **`init.R`** script that automatically installs all dependencies.
 
----
-
-## 📦 Dependencies
-
-The following R packages are required and handled by `init.R`:
-
-- xml2
-- dplyr
-- ggplot2
-- tidyverse
-- showtext
-- shadowtext
-- ggborderline
-- ggtext
-- fontawesome
-- rvest
-- patchwork
-- tools
-
-> **Font note:** Font Awesome must be installed locally for the script to render icons correctly.
-
----
-
-## 📝 Notes
-
-- The script calculates **average heart rate per kilometre** for display on the middle chart.  
-- Heart rate zones are categorized according to standard zones (Zone 1–5). Ensure your TCX file includes `HeartRateBpm` data.  
-- Time formats, distance, and other metrics are automatically computed from the trackpoints in the `.tcx` file.
-
----
-
-## 📖 License
-
-MIT License – Feel free to reuse and adapt for your own running analysis.
-
----
-
-## 👋 Contribution
-
-Contributions and improvements are welcome! Please submit issues or pull requests on the GitHub repository.
-
----
-
-## 📂 Sample Activity Included
-
-The repository includes a sample activity located at:
-
-```
-activities/2025-10-01T11/23/52+00/00_20556010525.tcx
-```
-
-Use this file to test the script and generate sample charts.
-
----
-
-## 🛠️ `init.R` Script
-
-The `R/init.R` script provides an `init()` function that:
-
-1. Checks for missing R packages and installs them.
-2. Loads all required packages into the session.
-3. Ensures Font Awesome is available for plot titles.
-
-### Usage:
+Simply run this once from your R console:
 
 ```r
-source("R/init.R")
-init()
+source("init.R")
 ```
 
-This makes it easy for new users to set up all dependencies with a single command, similar to a Python `requirements.txt` workflow.
+This ensures all required libraries are available before using the CLI tool or launching the Shiny app.
 
 ---
 
-## 🖼️ Sample Output
+## 📜 License
 
-Here are example charts generated from the included sample activity:
-
-**1. Kilometre Split Times**  
-![Kilometre Split Times](./docs/2025-10-01T11:23:52+00:00_20556010525_pace.png)
-
-**2. Heart Rate per Kilometre**  
-![Heart Rate per Kilometre](./docs/2025-10-01T11:23:52+00:00_20556010525_hr_line.png)
-
-**3. Heart Rate Zones**  
-![Heart Rate Zones](./docs/2025-10-01T11:23:52+00:00_20556010525_hr_stacked.png)
-
-**4. Combined Chart**  
-![Combined Chart](./docs/2025-10-01T11:23:52+00:00_20556010525_combined.png)
-
-
+MIT License © 2025 [Your Name]
