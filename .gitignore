@@ -14,14 +14,17 @@
 .RData
 .Ruserdata
 
+# Shiny depliyment / runtime files
+rsconnect/
+
 # Generated output folders
 
-Charts/
+#Charts/
 
 # large or private TCX files (if you have more than sample activity)
 
 activities/*.tcx
-!activities/2025-10-01T11/23/52+00/00_20556010525.tcx  # keep the sample activity
+!activities/sample_5k.tcx  # keep the sample activity
 
 # Logs or temporary files
 
