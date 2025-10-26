@@ -21,10 +21,6 @@ rsconnect/
 
 #Charts/
 
-# large or private TCX files (if you have more than sample activity)
-
-activities/*.tcx
-!activities/sample_5k.tcx  # keep the sample activity
 
 # Logs or temporary files
 

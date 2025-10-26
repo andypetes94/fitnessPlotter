@@ -44,7 +44,7 @@ fitnessPlotter/
 │ └── Plot_Runs.R # Core functions for parsing and plotting
 │ └── init.R # Initialization script for installing/loading dependencies
 ├── activities/ # Sample Garmin .tcx activities
-│ └── 2025-10-01T11_23_52+00_00_20556010525.tcx
+│ └── sample_5k.tcx
 ├── app.R # Shiny app for interactive visualisation
 ├── README.md # This file
 ├── .Rproj.user/ # RStudio project files (usually ignored in Git)
