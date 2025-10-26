@@ -34,7 +34,6 @@ read_tcx_data <- function(file) {
   run_data <- run_data %>%
     mutate(
       time = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
-      time_elapsed = as.numeric(difftime(time, min(time), units = "secs")),
       Zone_Label = case_when(
         heart_rate > 171 ~ "Zone 5",
         heart_rate > 153 ~ "Zone 4",
@@ -44,7 +43,8 @@ read_tcx_data <- function(file) {
       ),
       kilometre = paste0("KM ", ceiling(distance / 1000))
     ) %>%
-    filter(kilometre != "KM 0" & kilometre != max(kilometre))
+    filter(kilometre != "KM 0" & kilometre != max(kilometre)) %>%
+    mutate(time_elapsed = as.numeric(difftime(time, min(time), units = "secs")))
   
   run_data$kilometre <- factor(run_data$kilometre, levels = unique(run_data$kilometre))
   return(run_data)
