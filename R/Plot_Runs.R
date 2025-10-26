@@ -156,13 +156,13 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
     scale_fill_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     labs(subtitle = paste0("<img src='www/icons/fire-flame-curved-solid-full.png' width='30' height='30'> ",
-                           "Time in Heart Rate Zones | Time: ",
+                           "Heart Rate Zones | Time: ",
                            total_time_formatted, " | ", start_date, " | ",  max_km_longer, " KM</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(size = 22),
+      plot.subtitle = element_markdown(size = 20),
       axis.text.x = element_text(size = sizes$stacked_axis_text, face = "bold"),
       axis.text.y = element_blank(),
       axis.title = element_blank(),
@@ -195,7 +195,7 @@ plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, si
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(size = 22),
+      plot.subtitle = element_markdown(size = 20),
       axis.title = element_blank(),
       axis.text = element_blank(),
       panel.grid = element_blank()
@@ -217,7 +217,7 @@ plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, m
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(size = 22),
+      plot.subtitle = element_markdown(size = 20),
       axis.title = element_blank(),
       axis.text = element_blank(),
       panel.grid = element_blank()
