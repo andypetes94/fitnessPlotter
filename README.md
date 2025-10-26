@@ -147,10 +147,10 @@ Below are sample output charts generated from a sample `.tcx` file:
 
 | Chart Type | Example |
 |-------------|----------|
-| Pace Splits | ![Pace Splits](docs/pace.png) |
-| HR Line | ![HR Line](docs/hr_line.png) |
-| HR Zones | ![HR Zones](docs/hr_stacked.png) |
-| Combined View | ![Combined](docs/combined.png) |
+| Pace Splits | ![Pace Splits](Charts/sample_5k/sample_5k_pace.png) |
+| HR Line | ![HR Line](Charts/sample_5k/sample_5k_hr_line.png) |
+| HR Zones | ![HR Zones](Charts/sample_5k/sample_5k_hr_stacked.png) |
+| Combined View | ![Combined](Charts/sample_5k/sample_5k_combined.png) |
 
 ---
 

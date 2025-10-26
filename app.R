@@ -143,7 +143,7 @@ server <- function(input, output, session) {
   
   # Auto-load default file on app startup
   observe({
-    default_path <- "./activities/2025-10-01T11:23:52+00:00_20556010525.tcx"
+    default_path <- "./activities/sample_5k.tcx"
     if (file.exists(default_path) && is.null(current_file())) {
       current_file(default_path)
     }
@@ -165,6 +165,7 @@ server <- function(input, output, session) {
   run_summaries <- reactive({
     rd <- run_data()
     max_km <- max(ceiling(rd$distance / 1000), na.rm = TRUE)
+    max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
     sizes <- get_plot_sizes(max_km)
     total_seconds <- max(rd$time_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
@@ -172,6 +173,7 @@ server <- function(input, output, session) {
     summaries <- summarize_run_data(rd)
     list(rd = rd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, max_km = max_km,
+         max_km_longer = max_km_longer,
          km_splits = summaries$km_splits,
          hr_df_avg = summaries$hr_df_avg,
          hr_stacked_bar = summaries$hr_stacked_bar)
@@ -192,27 +194,27 @@ server <- function(input, output, session) {
   output$pace_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes)
+    plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
   })
   
   output$hr_line_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes)
+    plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
   })
   
   output$hr_stacked_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes)
+    plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
   })
   
   output$combined_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes)
-    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes)
-    p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes)
+    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
+    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
+    p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
     combine_run_plots(p_pace, p_hr_line, p_hr_stacked)
   })
   

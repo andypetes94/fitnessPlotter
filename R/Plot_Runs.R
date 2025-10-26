@@ -43,7 +43,19 @@ read_tcx_data <- function(file) {
       ),
       kilometre = paste0("KM ", ceiling(distance / 1000))
     ) %>%
-    filter(kilometre != "KM 0" & kilometre != max(kilometre)) %>%
+    {
+      # --- Conditional filtering for last kilometre ---
+      max_dist <- max(.$distance, na.rm = TRUE)
+      remainder <- max_dist %% 1000
+      
+      if (remainder < 50) {
+        # Drop KM 0 and the last incomplete kilometre
+        filter(., kilometre != "KM 0" & kilometre != paste0("KM ", ceiling(max_dist / 1000)))
+      } else {
+        # Drop only KM 0
+        filter(., kilometre != "KM 0")
+      }
+    } %>%
     mutate(time_elapsed = as.numeric(difftime(time, min(time), units = "secs")))
   
   run_data$kilometre <- factor(run_data$kilometre, levels = unique(run_data$kilometre))
@@ -133,7 +145,7 @@ summarize_run_data <- function(run_data) {
 }
 
 # ---- 5. Plot functions ----
-plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, sizes) {
+plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer) {
   ggplot(hr_stacked_bar, aes(x = kilometre, y = avg_count, fill = Colour_Code)) +
     geom_vline(xintercept = seq(0.5, 20, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     geom_bar(position = "fill", stat = "identity", color = NA) +
@@ -144,8 +156,8 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
     scale_fill_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     labs(subtitle = paste0("<img src='www/icons/fire-flame-curved-solid-full.png' width='30' height='30'> ",
-                           "Proportion of Time in HR Zones | Time: ",
-                           total_time_formatted, " | ", start_date, "</span>")) +
+                           "Time in Heart Rate Zones | Time: ",
+                           total_time_formatted, " | ", start_date, " | ",  max_km_longer, " KM</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
@@ -160,7 +172,7 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
     )
 }
 
-plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes) {
+plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes, max_km_longer) {
   ggplot(hr_df_avg, aes(x = kilometre, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
     geom_vline(xintercept = seq(0.5, 100, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
@@ -178,7 +190,7 @@ plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, si
                        values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     labs(subtitle = paste0("<img src='www/icons/heart-pulse-solid-full.png' width='30' height='30'> ",
                            "Average Heart Rate | Time: ",
-                           total_time_formatted, " | ", start_date, "</span>")) +
+                           total_time_formatted, " | ", start_date, " | ",  max_km_longer, " KM</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
@@ -190,7 +202,7 @@ plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, si
     )
 }
 
-plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes) {
+plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, max_km_longer) {
   ggplot(km_splits, aes(x = kilometre, y = duration_mins, fill = duration_mins)) +
     geom_col(show.legend = FALSE) +
     geom_vline(xintercept = seq(0.5, 100, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
@@ -200,7 +212,7 @@ plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes) {
     scale_fill_gradient2(high = '#8cc5e3', mid = '#3594cc', midpoint = 4, low = '#2066a8') +
     labs(subtitle = paste0("<img src='www/icons/stopwatch-solid-full.png' width='30' height='30'> ",
                            "Kilometre Splits | Time: ",
-                           total_time_formatted, " | ", start_date, "</span>")) +
+                           total_time_formatted, " | ", start_date, " | ",  max_km_longer, " KM</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
