@@ -6,25 +6,41 @@ library(patchwork)
 library(ggplot2)
 library(dplyr)
 library(fontawesome)
+library(fresh)
 
 # Source plotting helpers
 source("R/Plot_Runs.R")
 
 # --- Define custom theme ---
-theme <- bs_theme(
-  version = 5,
-  bootswatch = "minty",
-  base_font = font_google("Lato"),
-  heading_font = font_google("Montserrat"),
-  bg = "#f9fafb",
-  fg = "#222222",
-  primary = "#000080",
-  secondary = "#0d6efd"
+mytheme <- create_theme(
+  adminlte_color(
+    # Header Colour
+    light_blue = "#1D3557"
+  ),
+  adminlte_sidebar(
+    width = "250px",
+    # Sidebar Background
+    dark_bg = "#457B9D",
+    # Hover Background
+    dark_hover_bg = "#A8DADC",
+    # Text Background
+    dark_color = "#F1FAEE"
+  ),
+  adminlte_global(
+    # Whole Background
+    content_bg = "#FDFFFC", #white
+    # Box Background
+    box_bg = "#EBFAFA", 
+    # No idea what this does
+    info_box_bg = "#E63946"
+  )
 )
 
 # --- UI ---
 ui <- fluidPage(
-  theme = theme,
+  #theme = theme,
+  use_theme(mytheme),
+  includeCSS("www/custom.css"),
   tags$head(
     tags$style(HTML("
       .plot-card {
@@ -68,11 +84,17 @@ ui <- fluidPage(
   fluidRow(
     column(
       width = 8, offset = 2,
-      fileInput("tcx_file", "Upload TCX File", accept = ".tcx",
-                buttonLabel = "Browse", placeholder = "Choose a Garmin activity file..."),
-      uiOutput("activity_info")
-    )
-  ),
+      div(
+        style = "text-align: center;",
+        div(
+          style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
+          fileInput("tcx_file", "Upload TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+        )
+      ),
+      div(style = "margin-top: 0px;", uiOutput("activity_info"))
+    ),
+    style = "margin-bottom: 10px;"),
+  
   
   # --- Tabs for plots ---
   fluidRow(
@@ -160,7 +182,8 @@ server <- function(input, output, session) {
     req(run_summaries())
     rs <- run_summaries()
     dist_km <- round(max(rs$rd$distance, na.rm = TRUE) / 1000, 2)
-    tags$div(class = "text-center text-success fw-bold mb-4",
+    tags$div(style = "margin-top: 0px; margin-bottom: 0px;",
+             class = "text-center text-success fw-bold",
              paste("✅ Loaded", dist_km, "km activity — Total Time:", rs$total_time_formatted)
     )
   })

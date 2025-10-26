@@ -143,13 +143,14 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
               family = "Lato", fontface = "bold") +
     scale_fill_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
-    labs(subtitle = paste0("\uf7e4 <span style='font-family: Lato'> Proportion of Time in HR Zones | Time: ",
+    labs(subtitle = paste0("<img src='www/icons/fire-flame-curved-solid-full.png' width='30' height='30'> ",
+                           "Proportion of Time in HR Zones | Time: ",
                            total_time_formatted, " | ", start_date, "</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(family = fa_font, size = 22),
+      plot.subtitle = element_markdown(size = 22),
       axis.text.x = element_text(size = sizes$stacked_axis_text, face = "bold"),
       axis.text.y = element_blank(),
       axis.title = element_blank(),
@@ -175,13 +176,14 @@ plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, si
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     scale_color_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),,
                        values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
-    labs(subtitle = paste0("\uf21e <span style='font-family: Lato'> Average Heart Rate | Time: ",
+    labs(subtitle = paste0("<img src='www/icons/heart-pulse-solid-full.png' width='30' height='30'> ",
+                           "Average Heart Rate | Time: ",
                            total_time_formatted, " | ", start_date, "</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(family = fa_font, size = 22),
+      plot.subtitle = element_markdown(size = 22),
       axis.title = element_blank(),
       axis.text = element_blank(),
       panel.grid = element_blank()
@@ -196,13 +198,14 @@ plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes) {
     geom_text(aes(label = duration_formatted, y = 0.4),
               size = sizes$bar_text, color = "white", family = "Lato", fontface = "bold") +
     scale_fill_gradient2(high = '#8cc5e3', mid = '#3594cc', midpoint = 4, low = '#2066a8') +
-    labs(subtitle = paste0("\uf2f2 <span style='font-family: Lato'> Kilometre Splits | Time: ",
+    labs(subtitle = paste0("<img src='www/icons/stopwatch-solid-full.png' width='30' height='30'> ",
+                           "Kilometre Splits | Time: ",
                            total_time_formatted, " | ", start_date, "</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
       plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(family = fa_font, size = 22),
+      plot.subtitle = element_markdown(size = 22),
       axis.title = element_blank(),
       axis.text = element_blank(),
       panel.grid = element_blank()

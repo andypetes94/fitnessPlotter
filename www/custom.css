@@ -1,0 +1,67 @@
+/* ---------------------------------------------------- */
+/* Import Google Fonts and Font Awesome                 */
+/* ---------------------------------------------------- */
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
+
+/* Font Awesome (free version) */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+
+/* ---------------------------------------------------- */
+/* Global UI font (Shiny app)                          */
+/* ---------------------------------------------------- */
+body, 
+.main-header .logo, 
+.main-sidebar, 
+.header_1, 
+h2, h3, h4, h5, h6, 
+.irs-grid-text {
+  font-family: 'Lato', sans-serif;
+  font-weight: bold; /* This makes the text bold */
+}
+
+/* ---------------------------------------------------- */
+/* Header/logo styling                                  */
+/* ---------------------------------------------------- */
+.main-header .logo {
+  font-weight: bold;
+  font-size: 24px;
+  text-align: center;
+}
+
+/* Sidebar styling */
+.main-sidebar {
+  font-size: 18px; 
+  text-align: center;
+}
+
+/* Custom header class */
+.header_1 {
+  font-size: 18px; 
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Slider grid text */
+.irs-grid-text {
+  font-size: 12px;
+}
+
+/* Body text */
+body {
+  font-size: 16px; 
+}
+
+/* Header sizes */
+h2 { font-size: 26px; }
+h3 { font-size: 22px; }
+h4 { font-size: 18px; }
+h5 { font-size: 16px; }
+h6 { font-size: 14px; }
+
+/* ---------------------------------------------------- */
+/* Optional: ggplot-specific styling via CSS classes   */
+/* You can assign a class to ggplot text spans if needed*/
+/* ---------------------------------------------------- */
+/* Example: .ggplot-subtitle { font-family: 'Cantarell', sans-serif; } */
