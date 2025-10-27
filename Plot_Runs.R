@@ -1,20 +1,21 @@
 #!/usr/bin/env Rscript
 # ---- Garmin Run Plot Generator ----
-# Usage: Rscript Plot_Runs.R <tcx_files> [output_root]
+# Usage: Rscript Plot_Runs.R <tcx_files_or_dirs> [output_root]
 
 # ---- Handle Command-Line Arguments ----
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) == 0 || args[1] %in% c("-h", "--help")) {
   cat("
-Usage: Rscript Plot_Runs.R <tcx_files> [output_root]
+Usage: Rscript Plot_Runs.R <tcx_files_or_dirs> [output_root]
 
 Arguments:
-  <tcx_files>   One or more .tcx files (or wildcard like ./activities/*.tcx)
-  [output_root] (Optional) Directory where charts will be saved. Defaults to ./Charts
+  <tcx_files_or_dirs>  One or more .tcx files or directories containing .tcx files
+  [output_root]        (Optional) Directory where charts will be saved. Defaults to ./Charts
 
 Example:
   Rscript Plot_Runs.R ./activities/*.tcx ./Charts
+  Rscript Plot_Runs.R ./activities/ ./Charts
   Rscript Plot_Runs.R ./activities/*.tcx
 \n")
   quit(save = "no")
@@ -22,16 +23,50 @@ Example:
 
 # ---- Argument Parsing ----
 if (length(args) == 1) {
-  # Only TCX files provided — use default output directory
-  input_files <- args
+  # Single input argument → can be file or wildcard expansion
+  input_paths <- args
   output_root <- "./Charts"
   cat("ℹ️ No output directory specified — using default: ./Charts\n")
 } else {
-  input_files <- args[-length(args)]
-  output_root <- args[length(args)]
+  # Last argument is only considered output root if it is a directory
+  potential_output <- args[length(args)]
+  if (dir.exists(potential_output)) {
+    output_root <- potential_output
+    input_paths <- args[-length(args)]
+  } else if (!grepl("\\.tcx$", potential_output)) {
+    # Treat as new output directory (will create it)
+    output_root <- potential_output
+    input_paths <- args[-length(args)]
+  } else {
+    # Last argument looks like a .tcx file → treat all args as input, use default Charts
+    input_paths <- args
+    output_root <- "./Charts"
+    cat("ℹ️ Last argument looks like a .tcx file — using default output root ./Charts\n")
+  }
 }
 
 if (!dir.exists(output_root)) dir.create(output_root, recursive = TRUE)
+
+
+# ---- Expand directories into .tcx files ----
+input_files <- c()
+for (path in input_paths) {
+  if (dir.exists(path)) {
+    tcx_files <- list.files(path, pattern = "\\.tcx$", full.names = TRUE)
+    if (length(tcx_files) == 0) {
+      warning("⚠️ No .tcx files found in directory:", path)
+    }
+    input_files <- c(input_files, tcx_files)
+  } else if (file.exists(path)) {
+    input_files <- c(input_files, path)
+  } else {
+    warning("⚠️ Path does not exist:", path)
+  }
+}
+
+if (length(input_files) == 0) {
+  stop("❌ No valid .tcx files to process.")
+}
 
 # ---- Load Dependencies ----
 suppressPackageStartupMessages({
