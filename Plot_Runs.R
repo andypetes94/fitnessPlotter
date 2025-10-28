@@ -117,9 +117,9 @@ for (file in input_files) {
   summaries <- summarize_run_data(run_data)
   
   # ---- Generate Plots ----
-  p_pace <- plot_km_splits(summaries$km_splits, total_time_formatted, start_date, sizes, max_km_longer)
+  p_pace <- plot_km_splits(summaries$km_splits, total_time_formatted, start_date, sizes, max_km_longer, max_km)
   p_hr_line <- plot_hr_line(summaries$hr_df_avg, total_time_formatted, start_date, max_km, sizes, max_km_longer)
-  p_hr_stacked <- plot_hr_stacked(summaries$hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer)
+  p_hr_stacked <- plot_hr_stacked(summaries$hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer, max_km)
   combined_run <- combine_run_plots(p_pace, p_hr_line, p_hr_stacked)
   
   # ---- Save Charts ----

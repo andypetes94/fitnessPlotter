@@ -20,6 +20,20 @@ read_tcx_data <- function(file) {
   tcx_xml <- read_xml(file)
   xml_ns_strip(tcx_xml)
   
+  # ---- Check activity type ----
+  activity_node <- xml_find_first(tcx_xml, ".//Activity")
+  sport_type <- xml_attr(activity_node, "Sport")
+  
+  if (is.null(sport_type)) {
+    stop("❌ Could not detect an activity type in this TCX file.")
+  }
+  
+  if (tolower(sport_type) != "running") {
+    stop(paste0("❌ This is a '", sport_type, 
+                "' file — please upload a *Running* TCX file."))
+  }
+  
+  # ---- Continue if valid running file ----
   trackpoints <- xml_find_all(tcx_xml, ".//Trackpoint")
   
   run_data <- tibble(
@@ -49,18 +63,20 @@ read_tcx_data <- function(file) {
       remainder <- max_dist %% 1000
       
       if (remainder < 50) {
-        # Drop KM 0 and the last incomplete kilometre
         filter(., kilometre != "KM 0" & kilometre != paste0("KM ", ceiling(max_dist / 1000)))
       } else {
-        # Drop only KM 0
         filter(., kilometre != "KM 0")
       }
     } %>%
-    mutate(time_elapsed = as.numeric(difftime(time, min(time), units = "secs")))
+    mutate(time_elapsed = as.numeric(difftime(time, min(time), units = "secs"))) %>%
+    drop_na()
   
   run_data$kilometre <- factor(run_data$kilometre, levels = unique(run_data$kilometre))
+  
   return(run_data)
 }
+
+
 
 # ---- 2. Format total run time ----
 format_total_time <- function(total_seconds) {
@@ -141,13 +157,17 @@ summarize_run_data <- function(run_data) {
       duration_formatted = sprintf("%02d:%02d", duration_secs %/% 60, round(duration_secs %% 60))
     )
   
-  return(list(hr_stacked_bar = hr_stacked_bar, hr_df_avg = hr_df_avg, km_splits = km_splits))
+  map_runs_df <- run_data %>%
+    mutate(time_POSIXct = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ",tz = "UTC")) %>%
+    mutate(time_sec = as.numeric(time_POSIXct - min(time_POSIXct, na.rm = TRUE)))
+  
+  return(list(hr_stacked_bar = hr_stacked_bar, hr_df_avg = hr_df_avg, km_splits = km_splits, map_runs_df = map_runs_df))
 }
 
 # ---- 5. Plot functions ----
-plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer) {
+plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer, max_km) {
   ggplot(hr_stacked_bar, aes(x = kilometre, y = avg_count, fill = Colour_Code)) +
-    geom_vline(xintercept = seq(0.5, 20, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_vline(xintercept = seq(0.5, max_km + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     geom_bar(position = "fill", stat = "identity", color = NA) +
     geom_text(aes(label = paste0(round(prop), "%")),
               position = position_fill(vjust = 0.5),
@@ -174,7 +194,7 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
 
 plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes, max_km_longer) {
   ggplot(hr_df_avg, aes(x = kilometre, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
-    geom_vline(xintercept = seq(0.5, 100, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_vline(xintercept = seq(0.5, max_km + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
     geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
     geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
@@ -202,10 +222,10 @@ plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, si
     )
 }
 
-plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, max_km_longer) {
+plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, max_km_longer, max_km) {
   ggplot(km_splits, aes(x = kilometre, y = duration_mins, fill = duration_mins)) +
     geom_col(show.legend = FALSE) +
-    geom_vline(xintercept = seq(0.5, 100, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_vline(xintercept = seq(0.5, max_km + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     geom_hline(yintercept = 4, color = "gray20", linewidth = 1.5, linetype = "dashed") +
     geom_text(aes(label = duration_formatted, y = 0.4),
               size = sizes$bar_text, color = "white", family = "Lato", fontface = "bold") +
@@ -227,4 +247,88 @@ plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, m
 # ---- 6. Combine plots ----
 combine_run_plots <- function(p_pace, p_hr_line, p_hr_stacked) {
   p_pace / p_hr_line / p_hr_stacked
+}
+
+# ---- 7. Interactive map ----
+plot_run_map <- function(map_runs_df) {
+  
+  # 1. Get the actual data from the reactive
+  
+  # --------------------------
+  # 2. 1 km markers
+  km_markers <- map_runs_df %>%
+    filter(!is.na(distance)) %>%
+    mutate(km = floor(distance / 1000)) %>%
+    group_by(km) %>%
+    slice(1) %>%
+    ungroup() %>%
+    arrange(km) %>%  # ensure sorted by km
+    mutate(
+      time_sec_split = time_sec - lag(time_sec),
+      time_sec_split = case_when(
+        km == 0 ~ 0,            # start point
+        km == 1 ~ time_sec,     # first km
+        TRUE ~ time_sec_split
+      ),
+      time_elapsed_fmt = sprintf("%02d:%02d", as.integer(time_sec %/% 60), as.integer(time_sec %% 60)),
+      km_split = sprintf("%02d:%02d", as.integer(time_sec_split %/% 60), as.integer(time_sec_split %% 60))
+    )
+  
+  km_sf <- st_as_sf(km_markers, coords = c("longitude", "latitude"), crs = 4326)
+  
+  # --------------------------
+  # 3. Line segments for heart rate zones
+  segments <- lapply(1:(nrow(map_runs_df)-1), function(i) {
+    st_linestring(as.matrix(map_runs_df[i:(i+1), c("longitude", "latitude")]))
+  })
+  
+  zone_labels <- map_runs_df$Zone_Label[1:(nrow(map_runs_df)-1)]
+  valid_idx <- !is.na(zone_labels)
+  
+  line_sf <- st_sf(
+    Zone_Label = zone_labels[valid_idx],
+    Heart_Rate = map_runs_df$heart_rate[1:(nrow(map_runs_df)-1)][valid_idx],
+    Time = map_runs_df$time[1:(nrow(map_runs_df)-1)][valid_idx],
+    geometry = st_sfc(segments[valid_idx]),
+    crs = 4326
+  )
+  
+  # --------------------------
+  # 4. Start/finish points
+  points_sf <- st_as_sf(map_runs_df[c(1, nrow(map_runs_df)), ], coords = c("longitude", "latitude"), crs = 4326) %>%
+    mutate(type = factor(c("Start", "Finish"), levels = c("Start", "Finish")))
+  
+  # --------------------------
+  # 5. Colors for zones
+  zone_colors <- c(
+    "Zone 1" = "gray",
+    "Zone 2" = "#fdfa72",
+    "Zone 3" = "#FFB200",
+    "Zone 4" = "#EB5B00",
+    "Zone 5" = "#D91656"
+  )
+  
+  # --------------------------
+  # 6. Plot with tmap
+  #tmap_mode("view") # Not required
+  
+  tm_shape(line_sf) +
+    tm_lines(
+      col = "Zone_Label",
+      lwd = 3,
+      col.scale = tm_scale(values = zone_colors),
+      col.legend = tm_legend(title = "Heart Rate Zone"),
+      popup.vars = c("Heart Rate" = "Heart_Rate",
+                     "Zone" = "Zone_Label",
+                     "Time" = "Time")
+    ) +
+    tm_shape(km_sf) +
+    tm_symbols(
+      col = "white",
+      size = 0.5,
+      border.col = "black",
+      popup.vars = c("KM" = "km",
+                     "Time Elapsed" = "time_elapsed_fmt",
+                     "Split" = "km_split")
+    )
 }

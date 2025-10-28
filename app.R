@@ -7,9 +7,13 @@ library(ggplot2)
 library(dplyr)
 library(fontawesome)
 library(fresh)
+library(tmap)
+library(sf)
 
 # Source plotting helpers
 source("R/Plot_Runs.R")
+
+tmap_mode("view")  # set globally, once
 
 # --- Define custom theme ---
 mytheme <- create_theme(
@@ -129,6 +133,12 @@ ui <- fluidPage(
               withSpinner(plotOutput("combined_plot", height = "1000px"), type = 6),
               downloadButton("download_combined", "Download PNG", class = "download-btn mt-3")
           )
+        ),
+        tabPanel(
+          "📍 Run Map",
+          div(class = "plot-card",
+              withSpinner(tmapOutput("runMap", height = "450px"), type = 6),
+          )
         )
       )
     )
@@ -176,7 +186,8 @@ server <- function(input, output, session) {
          max_km_longer = max_km_longer,
          km_splits = summaries$km_splits,
          hr_df_avg = summaries$hr_df_avg,
-         hr_stacked_bar = summaries$hr_stacked_bar)
+         hr_stacked_bar = summaries$hr_stacked_bar,
+         map_runs_df = summaries$map_runs_df)
   })
   
   # Display activity info
@@ -194,7 +205,7 @@ server <- function(input, output, session) {
   output$pace_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
+    plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
   })
   
   output$hr_line_plot <- renderPlot({
@@ -206,16 +217,22 @@ server <- function(input, output, session) {
   output$hr_stacked_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
+    plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
   })
   
   output$combined_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
+    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
     p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
-    p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer)
+    p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
     combine_run_plots(p_pace, p_hr_line, p_hr_stacked)
+  })
+  
+  output$runMap <- renderTmap({
+    req(run_data())  # ensure data is available
+    rs <- run_summaries()
+    plot_run_map(rs$map_runs_df)  # pass the reactive itself
   })
   
   # --- Download Handlers ---
