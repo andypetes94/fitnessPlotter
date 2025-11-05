@@ -9,6 +9,7 @@ library(fontawesome)
 library(fresh)
 library(tmap)
 library(sf)
+library(shinydashboard)
 
 # Source plotting helpers
 source("R/Plot_Runs.R")
@@ -41,109 +42,145 @@ mytheme <- create_theme(
 )
 
 # --- UI ---
-ui <- fluidPage(
-  #theme = theme,
-  use_theme(mytheme),
-  includeCSS("www/custom.css"),
-  tags$head(
-    tags$style(HTML("
-      .plot-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-        padding: 20px;
-        margin-bottom: 25px;
-      }
-      .title-icon {
-        font-family: 'Font Awesome 7 Free';
-        font-weight: 900;
-        color: #000080;
-        margin-right: 10px;
-      }
-      .download-btn {
-        background-color: #000080 !important;
-        border: none !important;
-        color: white !important;
-        font-weight: 600;
-      }
-    "))
-  ),
+ui <- dashboardPage(
+  skin = "blue",   # optional theme colour
   
   # --- Header ---
-  fluidRow(
-    column(12,
-           tags$h2(
-             HTML("<i class='fa-solid fa-person-running title-icon'></i> Garmin Run Visualiser"),
-             class = "text-center mb-4 fw-bold",
-             style = "margin-top: 20px; color: navy;"  # <-- adds space above
-           ),
-           tags$p(
-             "Upload a Garmin .tcx file to visualize your run performance.",
-             class = "text-center text-muted mb-4"
-           )
+  dashboardHeader(
+    title = "fitnessPlotter",
+    
+    dropdownMenu(
+      type = "messages", badgeStatus = "success",
+      messageItem("Welcome!", "Explore your training data")
     )
   ),
   
-  # --- Upload Section ---
-  fluidRow(
-    column(
-      width = 8, offset = 2,
-      div(
-        style = "text-align: center;",
-        div(
-          style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
-          fileInput("tcx_file", "Upload TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
-        )
+  # --- Sidebar ---
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Run Activities", tabName = "runs", icon = icon("running")),
+      menuItem("HIIT Workouts", tabName = "hiit", icon = icon("fire"))
+    )
+  ),
+  
+  # --- Body ---
+  dashboardBody(
+    use_theme(mytheme),
+    includeCSS("www/custom.css"),
+    
+    tabItems(
+      
+      # ------------------ RUN ACTIVITIES TAB ------------------
+      tabItem(tabName = "runs",
+              
+              # --- Header ---
+              fluidRow(
+                column(12,
+                       tags$h2(
+                         HTML("<i class='fa-solid fa-person-running title-icon'></i> Run Visualiser"),
+                         class = "text-center mb-4 fw-bold",
+                         style = "margin-top: 20px; color: navy;"  # <-- adds space above
+                       ),
+                       tags$p(
+                         "Upload a '.tcx' file to visualize your run performance.",
+                         class = "text-center text-muted mb-4"
+                       )
+                )
+              ),
+              
+              # --- Upload Section ---
+              fluidRow(
+                column(
+                  width = 8, offset = 2,
+                  div(
+                    style = "text-align: center;",
+                    div(
+                      style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
+                      fileInput("tcx_file", "Upload Run TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+                    )
+                  ),
+                  div(style = "margin-top: 0px;", uiOutput("activity_info"))
+                ),
+                style = "margin-bottom: 10px;"),
+              
+              tabsetPanel(
+                type = "pills",
+                tabPanel("🏃 Pace Splits",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("pace_plot", height = "450px"), type = 6),
+                             downloadButton("download_pace", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("❤️ Heart Rate (Avg per KM)",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("hr_line_plot", height = "450px"), type = 6),
+                             downloadButton("download_hr_line", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("🔥 Heart Rate Zones",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("hr_stacked_plot", height = "450px"), type = 6),
+                             downloadButton("download_hr_stacked", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("📊 Combined Summary",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("combined_plot", height = "1000px"), type = 6),
+                             downloadButton("download_combined", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("📍 Run Map",
+                         div(class = "plot-card",
+                             withSpinner(tmapOutput("runMap", height = "450px"), type = 6)
+                         )
+                )
+              )
       ),
-      div(style = "margin-top: 0px;", uiOutput("activity_info"))
-    ),
-    style = "margin-bottom: 10px;"),
-  
-  
-  # --- Tabs for plots ---
-  fluidRow(
-    column(
-      width = 12,
-      tabsetPanel(
-        type = "pills",
-        tabPanel(
-          "🏃 Pace Splits",
-          div(class = "plot-card",
-              withSpinner(plotOutput("pace_plot", height = "450px"), type = 6),
-              downloadButton("download_pace", "Download PNG", class = "download-btn mt-3")
-          )
-        ),
-        tabPanel(
-          "❤️ Heart Rate (Avg per KM)",
-          div(class = "plot-card",
-              withSpinner(plotOutput("hr_line_plot", height = "450px"), type = 6),
-              downloadButton("download_hr_line", "Download PNG", class = "download-btn mt-3")
-          )
-        ),
-        tabPanel(
-          "🔥 Heart Rate Zones",
-          div(class = "plot-card",
-              withSpinner(plotOutput("hr_stacked_plot", height = "450px"), type = 6),
-              downloadButton("download_hr_stacked", "Download PNG", class = "download-btn mt-3")
-          )
-        ),
-        tabPanel(
-          "📊 Combined Summary",
-          div(class = "plot-card",
-              withSpinner(plotOutput("combined_plot", height = "1000px"), type = 6),
-              downloadButton("download_combined", "Download PNG", class = "download-btn mt-3")
-          )
-        ),
-        tabPanel(
-          "📍 Run Map",
-          div(class = "plot-card",
-              withSpinner(tmapOutput("runMap", height = "450px"), type = 6),
-          )
-        )
+      
+      # ------------------ HIIT WORKOUT TAB ------------------
+      tabItem(tabName = "hiit",
+              # --- Header ---
+              fluidRow(
+                column(12,
+                       tags$h2(
+                         HTML("<i class='fa-solid fa-fire-flame-curved title-icon'></i> HIIT Workouts"),
+                         class = "text-center mb-4 fw-bold",
+                         style = "margin-top: 20px; color: navy;"  # <-- adds space above
+                       ),
+                       tags$p(
+                         "Upload a '.tcx' file to visualise your run performance.",
+                         class = "text-center text-muted mb-4"
+                       )
+                )
+              ),
+              
+              # --- Upload Section ---
+              fluidRow(
+                column(
+                  width = 8, offset = 2,
+                  div(
+                    style = "text-align: center;",
+                    div(
+                      style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
+                      fileInput("tcx_file", "Upload a HIIT TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+                    )
+                  ),
+                ),
+                style = "margin-bottom: 10px;"),
+              fluidRow(
+                column(
+                  width = 12,
+                  box(title = "HIIT Data Coming Soon!", width = 12, status = "warning",
+                      solidHeader = TRUE,
+                      p("Once interval parsing is defined, plots and summaries will appear here.")
+                  )
+                )
+              )
       )
     )
   )
 )
+
 
 # --- Server ---
 server <- function(input, output, session) {
