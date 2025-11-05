@@ -1,0 +1,225 @@
+---
+title: "Test"
+output: html_document
+date: "2025-11-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+# ---- Load required libraries ----
+library(xml2)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(showtext)
+library(shadowtext)
+library(ggborderline)
+library(ggtext)
+library(fontawesome)
+library(rvest)
+library(patchwork)
+library(tools)
+library(fuzzyjoin)
+
+# Source plotting helpers
+source("R/Plot_Runs.R")
+
+```
+
+
+```{r}
+
+file <- "/Users/andrewpeters/Desktop/Garmin/Data/Sample_Splits.tcx"
+
+```
+
+
+```{r}
+
+# ---- 1. Read and parse TCX file ----
+#read_tcx_data <- function(file) {
+  tcx_xml <- read_xml(file)
+  xml_ns_strip(tcx_xml)
+  
+  # ---- Check activity type ----
+  activity_node <- xml_find_first(tcx_xml, ".//Activity")
+  sport_type <- xml_attr(activity_node, "Sport")
+  
+#}
+  
+   if (is.null(sport_type)) {
+     stop("❌ Could not detect an activity type in this TCX file.")
+   }
+   
+   if (!(tolower(sport_type) %in% c("other", "hiit"))) {
+     stop(paste0("❌ This is a '", sport_type, 
+                 "' file — please upload a correct TCX file."))
+   }
+
+  hiit_trackpoints <- xml_find_all(activity_node, ".//Lap")
+  trackpoints <- xml_find_all(hiit_trackpoints, ".//Trackpoint")
+  
+  hiit_data <- tibble(
+    time = sapply(trackpoints, function(x) xml_text(xml_find_first(x, ".//Time"))),
+    heart_rate = sapply(trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//HeartRateBpm/Value"))))
+  ) %>%
+    mutate(time = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
+    seconds_elapsed = as.numeric(time - first(time)))
+  
+  hiit_metadata <- tibble(
+    circuit_duration = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//TotalTimeSeconds"))),
+    calories = sapply(hiit_trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//Calories")))),
+    avg_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//AverageHeartRateBpm"))),
+    max_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//MaximumHeartRateBpm"))),
+  ) %>%
+    mutate(phase = if_else(row_number() == 1,
+                         "Warm-Up",
+                         paste0("Circuit ", row_number() - 1))) %>%
+    mutate(start_sec = lag(cumsum(circuit_duration), default = 0),
+    end_sec = cumsum(circuit_duration))
+  
+  
+
+hiit_joined <- fuzzy_left_join(
+  hiit_data,
+  hiit_metadata,
+  by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
+  match_fun = list(`>=`, `<=`)
+) %>% mutate(Zone_Label = case_when(
+      heart_rate > 171 ~ "Zone 5",
+      heart_rate > 153 ~ "Zone 4",
+      heart_rate > 134 ~ "Zone 3",
+      heart_rate > 115 ~ "Zone 2",
+      TRUE ~ "Zone 1"
+    ))
+  
+
+#out <- read_tcx_data(file)
+
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+
+hr_stacked_bar <- hiit_joined %>%
+    mutate(Colour_Code = case_when(
+      !Zone_Label %in% c("Zone 5", "Zone 4", "Zone 3") ~ "Other",
+      TRUE ~ Zone_Label
+    )) %>%
+    mutate(Colour_Code = factor(Colour_Code, levels = c("Zone 5", "Zone 4", "Zone 3", "Other"))) %>%
+    group_by(phase, Colour_Code) %>%
+    summarise(avg_hr = mean(heart_rate), avg_count = n(), .groups = "drop") %>%
+    group_by(phase) %>%
+    mutate(total_count = sum(avg_count), prop = (avg_count / total_count) * 100) %>%
+    ungroup()
+
+hr_df_avg <- hiit_joined %>%
+    group_by(phase) %>%
+    summarise(avg_hr = mean(heart_rate), .groups = "drop") %>%
+    mutate(Zone_Label = case_when(
+      avg_hr > 171 ~ "Zone 5",
+      avg_hr > 153 ~ "Zone 4",
+      avg_hr > 134 ~ "Zone 3",
+      avg_hr > 115 ~ "Zone 2",
+      TRUE ~ "Zone 1"
+    ))
+  
+  km_splits <- hiit_joined %>%
+    group_by(phase) %>%
+    summarise(
+      duration_secs = max(seconds_elapsed, na.rm = TRUE) - min(seconds_elapsed, na.rm = TRUE),
+      avg_hr = mean(heart_rate, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      duration_mins = duration_secs / 60,
+      duration_formatted = sprintf("%02d:%02d", duration_secs %/% 60, round(duration_secs %% 60))
+    )
+
+```
+
+
+```{r}
+
+rd <- summarize_hiit_data(hiit_data = hiit_joined)
+
+```
+
+
+```{r}
+
+ggplot(rd$hr_stacked_bar, aes(x = phase, y = avg_count, fill = Colour_Code)) +
+    geom_vline(xintercept = seq(0.5, length(unique(rd$hr_stacked_bar$phase)) + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_bar(position = "fill", stat = "identity", color = NA) +
+    geom_text(aes(label = paste0(round(prop), "%")),
+              position = position_fill(vjust = 0.5),
+              color = "white", size = 5,
+              family = "Lato", fontface = "bold") +
+    scale_fill_manual(breaks = c("Other","Zone 2","Zone 3", "Zone 4", "Zone 5"),
+                      values = c("gray", "#fdfa72","#FFB200", "#EB5B00", "#D91656")) +
+    labs(subtitle = paste0("<img src='www/icons/fire-flame-curved-solid-full.png' width='30' height='30'> ",
+                           "Heart Rate Zones | Time: Test | Date: Test </span>")) +
+    theme_minimal(base_family = "Lato") +
+    theme(
+      panel.background = element_rect(color = "white", fill = "white"),
+      plot.background = element_rect(color = "white", fill = "white"),
+      plot.subtitle = element_markdown(size = 20),
+      axis.text.x = element_text(size = 8, face = "bold"),
+      axis.text.y = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      legend.title = element_blank(),
+      legend.position = "bottom"
+    )
+
+```
+
+```{r}
+
+
+  ggplot(rd$hr_df_avg, aes(x = phase, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
+    geom_vline(xintercept = seq(0.5, length(unique(rd$hr_stacked_bar$phase)) + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_rect(aes(xmin = 0.5, xmax = length(unique(rd$hr_stacked_bar$phase)) + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
+    geom_rect(aes(xmin = 0.5, xmax = length(unique(rd$hr_stacked_bar$phase)) + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
+    geom_rect(aes(xmin = 0.5, xmax = length(unique(rd$hr_stacked_bar$phase)) + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
+    geom_line(group = 1, color = 'black', linewidth = sizes$geom_line_width, alpha = 0.2) +
+    geom_line(group = 1, color = 'white', linewidth = (sizes$geom_line_width * (2/3))) +
+    geom_point(shape = 21, size = sizes$geom_point_size, color = "white", stroke = sizes$geom_point_stroke, show.legend = F) +
+    geom_text(aes(label = round(avg_hr)), size = sizes$point_text_size,
+              color = "white", family = "Lato", fontface = "bold") +
+    scale_y_continuous(limits = c(134, 190)) +
+    scale_fill_manual(breaks = c("Zone 1","Zone 2","Zone 3", "Zone 4", "Zone 5"),
+                      values = c("gray", "#fdfa72","#FFB200", "#EB5B00", "#D91656")) +
+    labs(subtitle = paste0("<img src='www/icons/heart-pulse-solid-full.png' width='30' height='30'> ",
+                           "Average Heart Rate | Time: ",
+                           total_time_formatted, " | ", start_date, " | ",  max_km_longer, " KM</span>")) +
+    theme_minimal(base_family = "Lato") +
+    theme(
+      panel.background = element_rect(color = "white", fill = "white"),
+      plot.background = element_rect(color = "white", fill = "white"),
+      plot.subtitle = element_markdown(size = 20),
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      panel.grid = element_blank()
+    )
+}
+
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -10,6 +10,7 @@ library(fresh)
 library(tmap)
 library(sf)
 library(shinydashboard)
+library(fuzzyjoin)
 
 # Source plotting helpers
 source("R/Plot_Runs.R")
@@ -43,7 +44,7 @@ mytheme <- create_theme(
 
 # --- UI ---
 ui <- dashboardPage(
-  skin = "blue",   # optional theme colour
+  #skin = "blue",   # optional theme colour
   
   # --- Header ---
   dashboardHeader(
@@ -59,7 +60,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Run Activities", tabName = "runs", icon = icon("running")),
-      menuItem("HIIT Workouts", tabName = "hiit", icon = icon("fire"))
+      menuItem("HIIT Workouts", tabName = "hiit", icon = icon("fire")),
+      menuItem("HYROX Workouts", tabName = "hyrox", icon = icon("dumbbell"))
     )
   ),
   
@@ -67,7 +69,6 @@ ui <- dashboardPage(
   dashboardBody(
     use_theme(mytheme),
     includeCSS("www/custom.css"),
-    
     tabItems(
       
       # ------------------ RUN ACTIVITIES TAB ------------------
@@ -82,7 +83,7 @@ ui <- dashboardPage(
                          style = "margin-top: 20px; color: navy;"  # <-- adds space above
                        ),
                        tags$p(
-                         "Upload a '.tcx' file to visualize your run performance.",
+                         "Upload a '.tcx' file to visualise your run performance.",
                          class = "text-center text-muted mb-4"
                        )
                 )
@@ -153,7 +154,16 @@ ui <- dashboardPage(
                        )
                 )
               ),
-              
+              # --- New Tab ---
+              fluidRow(
+                column(
+                  width = 12,
+                  box(title = "HIIT Data Just Launced! 🚀", width = 12, status = "success",
+                      solidHeader = TRUE,
+                      p("We now Plot Interval Data!")
+                  )
+                )
+              ),
               # --- Upload Section ---
               fluidRow(
                 column(
@@ -162,20 +172,76 @@ ui <- dashboardPage(
                     style = "text-align: center;",
                     div(
                       style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
-                      fileInput("tcx_file", "Upload a HIIT TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+                      fileInput("tcx_file_hiit", "Upload a HIIT TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
                     )
                   ),
+                  div(style = "margin-top: 0px;", uiOutput("activity_info_hiit"),
+                      prettyCheckbox(
+                        inputId = "remove_warmup",
+                        label = "Remove Warm-Up (First) Interval",
+                        value = FALSE,
+                        status = "info",        # built-in color scheme, but we will override below
+                        outline = TRUE,
+                        fill = TRUE,
+                        icon = icon("check")
+                      )),
                 ),
                 style = "margin-bottom: 10px;"),
+              
+              tabsetPanel(
+                type = "pills",
+                tabPanel("🏃 Circuit Splits",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("circuit_time_plot", height = "450px"), type = 6),
+                             downloadButton("download_circuit", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("❤️ Heart Rate (Avg per KM)",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("hr_line_plot_hiit", height = "450px"), type = 6),
+                             downloadButton("download_hr_line_hiit", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("🔥 Heart Rate Zones",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("hr_stacked_plot_hiit", height = "450px"), type = 6),
+                             downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+                tabPanel("📊 Combined Summary",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("combined_plot_hiit", height = "1000px"), type = 6),
+                             downloadButton("download_combined_hiit", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
+              )
+      ),
+      # ------------------ HIIT WORKOUT TAB ------------------
+      tabItem(tabName = "hyrox",
+              # --- Header ---
+              fluidRow(
+                column(12,
+                       tags$h2(
+                         HTML("<i class='fa-solid fa-dumbbell'></i> HYROX Workouts"),
+                         class = "text-center mb-4 fw-bold",
+                         style = "margin-top: 20px; color: navy;"  # <-- adds space above
+                       ),
+                       tags$p(
+                         "Upload a '.tcx' file to visualise your HYROX performance.",
+                         class = "text-center text-muted mb-4"
+                       )
+                )
+              ),
+              # --- New Tab ---
               fluidRow(
                 column(
                   width = 12,
-                  box(title = "HIIT Data Coming Soon!", width = 12, status = "warning",
+                  box(title = "HYROX Data Coming Soon! 🔜", width = 12, status = "warning",
                       solidHeader = TRUE,
-                      p("Once interval parsing is defined, plots and summaries will appear here.")
+                      p("Watch this Space as we are Working on Integrating HYROX Workouts!")
                   )
                 )
-              )
+              ),
       )
     )
   )
@@ -208,6 +274,32 @@ server <- function(input, output, session) {
     read_tcx_data(current_file())
   })
   
+  #-------- HIT Data ----------#
+  
+  # Define the reactive value to store the current file path
+  current_file_hiit <- reactiveVal()
+  
+  # Auto-load default file on app startup
+  observe({
+    default_path <- "./activities/Sample_HIIT.tcx"
+    if (file.exists(default_path) && is.null(current_file_hiit())) {
+      current_file_hiit(default_path)
+    }
+  })
+  
+  # Handle file upload
+  observe({
+    req(input$tcx_file_hiit)
+    current_file_hiit(input$tcx_file_hiit$datapath)
+  })
+  
+  
+  # Reactive to read TCX file
+  hiit_data <- reactive({
+    req(current_file_hiit())
+    read_tcx_data_hiit(current_file_hiit())
+  })
+  
   # Reactive: summarize data for plots
   run_summaries <- reactive({
     rd <- run_data()
@@ -227,6 +319,26 @@ server <- function(input, output, session) {
          map_runs_df = summaries$map_runs_df)
   })
   
+  
+  # Reactive: summarize data for plots
+  hiit_summaries <- reactive({
+    hd <- hiit_data()
+    rounds <- length(unique(hd$phase))
+    #max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
+    sizes <- get_plot_sizes(rounds)
+    total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
+    total_time_formatted <- format_total_time(total_seconds)
+    start_date <- format(min(hd$time, na.rm = TRUE), "%d/%m/%Y")
+    summaries <- summarize_hiit_data(hd)
+    list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
+         start_date = start_date, rounds = rounds,
+         #max_km_longer = max_km_longer,
+         circuit_splits = summaries$circuit_splits,
+         hr_df_avg = summaries$hr_df_avg,
+         hr_stacked_bar = summaries$hr_stacked_bar)
+  })
+  
+  
   # Display activity info
   output$activity_info <- renderUI({
     req(run_summaries())
@@ -235,6 +347,17 @@ server <- function(input, output, session) {
     tags$div(style = "margin-top: 0px; margin-bottom: 0px;",
              class = "text-center text-success fw-bold",
              paste("✅ Loaded", dist_km, "km activity — Total Time:", rs$total_time_formatted)
+    )
+  })
+  
+  # Display activity info
+  output$activity_info_hiit <- renderUI({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    circuits <- hs$rounds
+    tags$div(style = "margin-top: 0px; margin-bottom: 0px;",
+             class = "text-center text-success fw-bold",
+             paste("✅ Loaded", circuits, " Circuits - Total Time:", hs$total_time_formatted)
     )
   })
   
@@ -271,6 +394,88 @@ server <- function(input, output, session) {
     rs <- run_summaries()
     plot_run_map(rs$map_runs_df)  # pass the reactive itself
   })
+  
+  
+  #-------- HIT Data ----------#
+  
+  output$circuit_time_plot <- renderPlot({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    
+    circuit_splits_filtered <- hs$circuit_splits
+    
+    if (isTRUE(input$remove_warmup)) {
+      circuit_splits_filtered <- hs$circuit_splits %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+    }
+    
+    rounds <- length(unique(circuit_splits_filtered$phase))
+    
+    plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+  })
+  
+  output$hr_line_plot_hiit <- renderPlot({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    
+    hr_df_avg_filtered  <- hs$hr_df_avg
+    
+    if (isTRUE(input$remove_warmup)) {
+      hr_df_avg_filtered <- hs$hr_df_avg %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+    }
+    
+    rounds <- length(unique(hr_df_avg_filtered$phase))
+    
+    plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
+  })
+  
+  output$hr_stacked_plot_hiit <- renderPlot({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    
+    plot_hr_stacked_filtered <- hs$hr_stacked_bar
+    
+    if (isTRUE(input$remove_warmup)) {
+      plot_hr_stacked_filtered <- hs$hr_stacked_bar %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+    }
+    
+    rounds <- length(unique(plot_hr_stacked_filtered$phase))
+    
+    plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+  })
+  
+  
+  output$combined_plot_hiit <- renderPlot({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    
+    hr_df_avg_filtered <- hs$hr_df_avg
+    plot_hr_stacked_filtered <- hs$hr_stacked_bar
+    circuit_splits_filtered <- hs$circuit_splits
+    
+    if (isTRUE(input$remove_warmup)) {
+      
+      hr_df_avg_filtered <- hs$hr_df_avg %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+      
+      plot_hr_stacked_filtered <- hs$hr_stacked_bar %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+      
+      circuit_splits_filtered <- hs$circuit_splits %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+    }
+    
+    rounds <- length(unique(circuit_splits_filtered$phase))
+    
+    p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+    p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
+    p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+    
+    combine_run_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit)
+  })
+  
   
   # --- Download Handlers ---
   output$download_pace <- downloadHandler(
@@ -311,6 +516,104 @@ server <- function(input, output, session) {
              width = 10, height = 12, dpi = 300)
     }
   )
+  
+  #-------- HIT Data ----------#
+  
+  output$download_circuit <- downloadHandler(
+    filename = function() "circuit_plot.png",
+    content = function(file) {
+      
+      hs <- hiit_summaries()
+      
+      circuit_splits_filtered <- hs$circuit_splits
+      
+      if (isTRUE(input$remove_warmup)) {
+        circuit_splits_filtered <- hs$circuit_splits %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+      }
+      
+      rounds <- length(unique(circuit_splits_filtered$phase))
+      
+      ggsave(file, plot = plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  output$download_hr_line_hiit <- downloadHandler(
+    filename = function() "hr_line_plot_hiit.png",
+    content = function(file) {
+      
+      hs <- hiit_summaries()
+      
+      hr_df_avg_filtered  <- hs$hr_df_avg
+      
+      if (isTRUE(input$remove_warmup)) {
+        hr_df_avg_filtered <- hs$hr_df_avg %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+      }
+      
+      rounds <- length(unique(hr_df_avg_filtered$phase))
+      
+      ggsave(file, plot = plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  output$download_hr_stacked_hiit <- downloadHandler(
+    filename = function() "hr_stacked_plot_hiit.png",
+    content = function(file) {
+      
+      hs <- hiit_summaries()
+      
+      plot_hr_stacked_filtered <- hs$hr_stacked_bar
+      
+      if (isTRUE(input$remove_warmup)) {
+        plot_hr_stacked_filtered <- hs$hr_stacked_bar %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+      }
+      
+      rounds <- length(unique(plot_hr_stacked_filtered$phase))
+      
+      ggsave(file, plot = plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  output$download_combined_hiit <- downloadHandler(
+    filename = function() "combined_plot_hiit.png",
+    content = function(file) {
+      hs <- hiit_summaries()
+      
+      hr_df_avg_filtered <- hs$hr_df_avg
+      plot_hr_stacked_filtered <- hs$hr_stacked_bar
+      circuit_splits_filtered <- hs$circuit_splits
+      
+      if (isTRUE(input$remove_warmup)) {
+        
+        hr_df_avg_filtered <- hs$hr_df_avg %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+        
+        plot_hr_stacked_filtered <- hs$hr_stacked_bar %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+        
+        circuit_splits_filtered <- hs$circuit_splits %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+      }
+      
+      rounds <- length(unique(circuit_splits_filtered$phase))
+      
+      p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+      p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
+      p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+      
+      ggsave(file, plot = combine_run_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit),
+             width = 10, height = 12, dpi = 300)
+    }
+  )
+  
+  
+  
+  
 }
 
 shinyApp(ui, server)

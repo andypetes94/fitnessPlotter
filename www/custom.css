@@ -60,6 +60,26 @@ h4 { font-size: 18px; }
 h5 { font-size: 16px; }
 h6 { font-size: 14px; }
 
+
+/* ----- Pretty Checkbox color overrides ----- */
+.pretty.p-default input:checked ~ .state.p-info label:before {
+  background-color: #457B9D !important; /* Sidebar dark blue */
+  border-color: #457B9D !important;
+}
+
+/* Label text styling */
+.pretty label {
+  color: #1D3557 !important;  /* Header navy */
+  font-weight: 600;
+}
+
+/* PrettySwitch override */
+.pretty .switch .switch-handle {
+  background-color: #457B9D !important;
+  border-color: #457B9D !important;
+}
+
+
 /* ---------------------------------------------------- */
 /* Optional: ggplot-specific styling via CSS classes   */
 /* You can assign a class to ggplot text spans if needed*/
