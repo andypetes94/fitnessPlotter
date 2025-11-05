@@ -60,7 +60,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Run Activities", tabName = "runs", icon = icon("running")),
-      menuItem("HIIT Workouts", tabName = "hiit", icon = icon("fire")),
+      menuItem("Cardio Workouts", tabName = "hiit", icon = icon("fire")),
       menuItem("HYROX Workouts", tabName = "hyrox", icon = icon("dumbbell"))
     )
   ),
@@ -138,18 +138,18 @@ ui <- dashboardPage(
               )
       ),
       
-      # ------------------ HIIT WORKOUT TAB ------------------
+      # ------------------ Cardio WORKOUT TAB ------------------
       tabItem(tabName = "hiit",
               # --- Header ---
               fluidRow(
                 column(12,
                        tags$h2(
-                         HTML("<i class='fa-solid fa-fire-flame-curved title-icon'></i> HIIT Workouts"),
+                         HTML("<i class='fa-solid fa-fire-flame-curved title-icon'></i> Cardio Workouts"),
                          class = "text-center mb-4 fw-bold",
                          style = "margin-top: 20px; color: navy;"  # <-- adds space above
                        ),
                        tags$p(
-                         "Upload a '.tcx' file to visualise your run performance.",
+                         "Upload a Cardio '.tcx' file to visualise your performance.",
                          class = "text-center text-muted mb-4"
                        )
                 )
@@ -158,9 +158,9 @@ ui <- dashboardPage(
               fluidRow(
                 column(
                   width = 12,
-                  box(title = "HIIT Data Just Launced! 🚀", width = 12, status = "success",
+                  box(title = "Cardio Visualiser Just Launced! 🚀", width = 12, status = "success",
                       solidHeader = TRUE,
-                      p("We now Plot Interval Data!")
+                      p("We now Plot Cardio Interval Data!")
                   )
                 )
               ),
@@ -216,7 +216,7 @@ ui <- dashboardPage(
                 ),
               )
       ),
-      # ------------------ HIIT WORKOUT TAB ------------------
+      # ------------------ Cardio WORKOUT TAB ------------------
       tabItem(tabName = "hyrox",
               # --- Header ---
               fluidRow(

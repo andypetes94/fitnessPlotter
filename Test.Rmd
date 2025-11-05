@@ -39,11 +39,23 @@ source("R/Plot_Runs.R")
 
 ```{r}
 
-file <- "/Users/andrewpeters/Desktop/Garmin/Data/Sample_Splits.tcx"
+# ---------------------------
+# Garmin FIT HIIT Interval Extractor - Generic Version
+# ---------------------------
+
+library(FITfileR)
+library(dplyr)
+library(lubridate)
+
+library(rvest)
+url <- "https://results.hyrox.com/…your_event…"
+page <- read_html(url)
+table <- page %>% html_node("table.splits") %>% html_table()
 
 ```
 
 
+ 
 ```{r}
 
 # ---- 1. Read and parse TCX file ----
@@ -68,6 +80,8 @@ file <- "/Users/andrewpeters/Desktop/Garmin/Data/Sample_Splits.tcx"
 
   hiit_trackpoints <- xml_find_all(activity_node, ".//Lap")
   trackpoints <- xml_find_all(hiit_trackpoints, ".//Trackpoint")
+  trackpoints_test <- xml_find_all(activity_node, ".//Extension//TPX")
+  #trackpoints <- xml_find_all(activity_node, ".//Trackpoint")
   
   hiit_data <- tibble(
     time = sapply(trackpoints, function(x) xml_text(xml_find_first(x, ".//Time"))),
@@ -76,17 +90,39 @@ file <- "/Users/andrewpeters/Desktop/Garmin/Data/Sample_Splits.tcx"
     mutate(time = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
     seconds_elapsed = as.numeric(time - first(time)))
   
-  hiit_metadata <- tibble(
-    circuit_duration = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//TotalTimeSeconds"))),
-    calories = sapply(hiit_trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//Calories")))),
-    avg_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//AverageHeartRateBpm"))),
-    max_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//MaximumHeartRateBpm"))),
-  ) %>%
-    mutate(phase = if_else(row_number() == 1,
-                         "Warm-Up",
-                         paste0("Circuit ", row_number() - 1))) %>%
-    mutate(start_sec = lag(cumsum(circuit_duration), default = 0),
-    end_sec = cumsum(circuit_duration))
+  
+  # Try extracting interval metadata
+interval_nodes <- xml_find_all(activity_node, ".//Lap//Extensions")
+#trackpoints <- xml_find_all(interval_nodes, ".//Trackpoint")
+
+test_data <- tibble(
+    time = sapply(interval_nodes, function(x) xml_text(xml_find_first(x, ".//TPX"))),
+    #heart_rate = sapply(trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//HeartRateBpm/Value"))))
+  ) 
+
+hiit_metadata <- tibble(
+  circuit_duration = as.numeric(xml_text(xml_find_all(interval_nodes, ".//TotalTimeSeconds"))),
+  avg_heartrate    = as.numeric(xml_text(xml_find_all(interval_nodes, ".//AverageHeartRateBpm/Value"))),
+  max_heartrate    = as.numeric(xml_text(xml_find_all(interval_nodes, ".//MaximumHeartRateBpm/Value")))
+) %>%
+  mutate(
+    phase = if_else(row_number() == 1, "Warm-Up", paste0("Circuit ", row_number() - 1)),
+    start_sec = lag(cumsum(circuit_duration), default = 0),
+    end_sec = cumsum(circuit_duration)
+  )
+
+  
+  # hiit_metadata <- tibble(
+  #   circuit_duration = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//TotalTimeSeconds"))),
+  #   calories = sapply(hiit_trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//Calories")))),
+  #   avg_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//AverageHeartRateBpm"))),
+  #   max_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//MaximumHeartRateBpm"))),
+  # ) %>%
+  #   mutate(phase = if_else(row_number() == 1,
+  #                        "Warm-Up",
+  #                        paste0("Circuit ", row_number() - 1))) %>%
+  #   mutate(start_sec = lag(cumsum(circuit_duration), default = 0),
+  #   end_sec = cumsum(circuit_duration))
   
   
 

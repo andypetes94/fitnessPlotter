@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "fit-file-parser": "^1.21.0"
+  }
+}
