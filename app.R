@@ -482,7 +482,7 @@ server <- function(input, output, session) {
     filename = function() "pace_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      ggsave(file, plot = plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes),
+      ggsave(file, plot = plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -491,7 +491,7 @@ server <- function(input, output, session) {
     filename = function() "hr_line_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      ggsave(file, plot = plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes),
+      ggsave(file, plot = plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -500,7 +500,7 @@ server <- function(input, output, session) {
     filename = function() "hr_stacked_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      ggsave(file, plot = plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes),
+      ggsave(file, plot = plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -509,9 +509,9 @@ server <- function(input, output, session) {
     filename = function() "combined_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes)
-      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes)
-      p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes)
+      p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
+      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
+      p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
       ggsave(file, plot = combine_run_plots(p_pace, p_hr_line, p_hr_stacked),
              width = 10, height = 12, dpi = 300)
     }
