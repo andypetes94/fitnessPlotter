@@ -39,18 +39,9 @@ source("R/Plot_Runs.R")
 
 ```{r}
 
-# ---------------------------
-# Garmin FIT HIIT Interval Extractor - Generic Version
-# ---------------------------
+#file <- ('/Users/andrewpeters/Desktop/Garmin/Data/hyrox_avg_based.tcx')
 
-library(FITfileR)
-library(dplyr)
-library(lubridate)
-
-library(rvest)
-url <- "https://results.hyrox.com/…your_event…"
-page <- read_html(url)
-table <- page %>% html_node("table.splits") %>% html_table()
+file <- ('./activities/Sample_HIIT.tcx')
 
 ```
 
@@ -59,90 +50,103 @@ table <- page %>% html_node("table.splits") %>% html_table()
 ```{r}
 
 # ---- 1. Read and parse TCX file ----
-#read_tcx_data <- function(file) {
-  tcx_xml <- read_xml(file)
+tcx_xml <- read_xml(file)
   xml_ns_strip(tcx_xml)
   
   # ---- Check activity type ----
   activity_node <- xml_find_first(tcx_xml, ".//Activity")
   sport_type <- xml_attr(activity_node, "Sport")
   
-#}
+  #}
   
-   if (is.null(sport_type)) {
-     stop("❌ Could not detect an activity type in this TCX file.")
-   }
-   
-   if (!(tolower(sport_type) %in% c("other", "hiit"))) {
-     stop(paste0("❌ This is a '", sport_type, 
-                 "' file — please upload a correct TCX file."))
-   }
-
+  if (is.null(sport_type)) {
+    stop("❌ Could not detect an activity type in this TCX file.")
+  }
+  
+  if (!(tolower(sport_type) %in% c("other", "hiit"))) {
+    stop(paste0("❌ This is a '", sport_type, 
+                "' file — please upload a correct TCX file."))
+  }
+  
   hiit_trackpoints <- xml_find_all(activity_node, ".//Lap")
   trackpoints <- xml_find_all(hiit_trackpoints, ".//Trackpoint")
-  trackpoints_test <- xml_find_all(activity_node, ".//Extension//TPX")
-  #trackpoints <- xml_find_all(activity_node, ".//Trackpoint")
   
   hiit_data <- tibble(
     time = sapply(trackpoints, function(x) xml_text(xml_find_first(x, ".//Time"))),
     heart_rate = sapply(trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//HeartRateBpm/Value"))))
   ) %>%
     mutate(time = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
-    seconds_elapsed = as.numeric(time - first(time)))
+           seconds_elapsed = as.numeric(time - first(time)))
+  
+  hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls")
+  
+  hiit_metadata <- tibble(
+    circuit_duration = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//TotalTimeSeconds"))),
+    calories = sapply(hiit_trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//Calories")))),
+    avg_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//AverageHeartRateBpm"))),
+    max_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//MaximumHeartRateBpm"))),
+  ) %>%
+  mutate(phase = hyrox_labels[row_number()]) %>%
+    mutate(start_sec = lag(cumsum(circuit_duration), default = 0),
+           end_sec = cumsum(circuit_duration))
   
   
-  # Try extracting interval metadata
-interval_nodes <- xml_find_all(activity_node, ".//Lap//Extensions")
-#trackpoints <- xml_find_all(interval_nodes, ".//Trackpoint")
-
-test_data <- tibble(
-    time = sapply(interval_nodes, function(x) xml_text(xml_find_first(x, ".//TPX"))),
-    #heart_rate = sapply(trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//HeartRateBpm/Value"))))
-  ) 
-
-hiit_metadata <- tibble(
-  circuit_duration = as.numeric(xml_text(xml_find_all(interval_nodes, ".//TotalTimeSeconds"))),
-  avg_heartrate    = as.numeric(xml_text(xml_find_all(interval_nodes, ".//AverageHeartRateBpm/Value"))),
-  max_heartrate    = as.numeric(xml_text(xml_find_all(interval_nodes, ".//MaximumHeartRateBpm/Value")))
-) %>%
-  mutate(
-    phase = if_else(row_number() == 1, "Warm-Up", paste0("Circuit ", row_number() - 1)),
-    start_sec = lag(cumsum(circuit_duration), default = 0),
-    end_sec = cumsum(circuit_duration)
-  )
-
   
-  # hiit_metadata <- tibble(
-  #   circuit_duration = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//TotalTimeSeconds"))),
-  #   calories = sapply(hiit_trackpoints, function(x) as.numeric(xml_text(xml_find_first(x, ".//Calories")))),
-  #   avg_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//AverageHeartRateBpm"))),
-  #   max_heartrate = sapply(hiit_trackpoints, function(x) xml_text(xml_find_first(x, ".//MaximumHeartRateBpm"))),
-  # ) %>%
-  #   mutate(phase = if_else(row_number() == 1,
-  #                        "Warm-Up",
-  #                        paste0("Circuit ", row_number() - 1))) %>%
-  #   mutate(start_sec = lag(cumsum(circuit_duration), default = 0),
-  #   end_sec = cumsum(circuit_duration))
-  
-  
-
-hiit_joined <- fuzzy_left_join(
-  hiit_data,
-  hiit_metadata,
-  by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
-  match_fun = list(`>=`, `<=`)
-) %>% mutate(Zone_Label = case_when(
+  hiit_joined <- fuzzy_left_join(
+    hiit_data,
+    hiit_metadata,
+    by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
+    match_fun = list(`>=`, `<=`)
+  ) %>% 
+    mutate(Zone_Label = case_when(
       heart_rate > 171 ~ "Zone 5",
       heart_rate > 153 ~ "Zone 4",
       heart_rate > 134 ~ "Zone 3",
       heart_rate > 115 ~ "Zone 2",
       TRUE ~ "Zone 1"
-    ))
+    )) %>%
+  mutate(time_bin = floor(seconds_elapsed / 10)) 
   
-
-#out <- read_tcx_data(file)
+  hiit_joined$phase <- factor(hiit_joined$phase, levels = unique(hiit_joined$phase))
 
 ```
+
+
+```{r}
+
+hiit_binned <- hiit_joined %>%
+  group_by(time_bin) %>%
+  summarise(heart_rate = mean(heart_rate), Zone_Label = dplyr::last(Zone_Label))
+
+
+ggplot(hiit_binned, aes(x = time_bin, y = heart_rate, fill = Zone_Label)) +
+  geom_col(color = NA) +
+  scale_fill_manual(breaks = c("Zone 1","Zone 2","Zone 3", "Zone 4", "Zone 5"),
+                      values = c("gray90", "#fdfa72","#FFB200", "#EB5B00", "#D91656")) +
+  labs(
+    title = "Heart Rate Over Time by Training Zones",
+    x = "Time (10s bins)",
+    y = "Heart Rate (bpm)",
+    fill = "Heart Rate Zone"
+  ) +
+  theme_minimal(base_family = "Lato") +
+    theme(
+      panel.background = element_rect(color = "white", fill = "white"),
+      plot.background = element_rect(color = "white", fill = "white"),
+      plot.subtitle = element_markdown(size = 20),
+      axis.text.x = element_text(size = 8, face = "bold"),
+      axis.text.y = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      legend.title = element_blank(),
+      legend.position = "bottom"
+    )
+
+
+
+```
+
+
 
 
 ## Including Plots
@@ -193,13 +197,20 @@ hr_df_avg <- hiit_joined %>%
 
 rd <- summarize_hiit_data(hiit_data = hiit_joined)
 
+tmp <- rd$hr_stacked_bar
+
+tmp2 <- rd$hr_df_avg
+
 ```
 
 
 ```{r}
 
-ggplot(rd$hr_stacked_bar, aes(x = phase, y = avg_count, fill = Colour_Code)) +
+ggplot(rd$hr_stacked_bar, aes(x = phase, y = avg_count, fill = Zone_Label)) +
     geom_vline(xintercept = seq(0.5, length(unique(rd$hr_stacked_bar$phase)) + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    geom_point(data = rd$hr_df_avg, aes(x = phase, y = 1.1), shape = 21, size = 8, color = "white", stroke = 2, show.legend = F) +
+    geom_text(data = rd$hr_df_avg, aes(x = phase, y = 1.1, label = round(avg_hr)), size = 6,
+              color = "white", family = "Lato", fontface = "bold") +
     geom_bar(position = "fill", stat = "identity", color = NA) +
     geom_text(aes(label = paste0(round(prop), "%")),
               position = position_fill(vjust = 0.5),
@@ -252,9 +263,138 @@ ggplot(rd$hr_stacked_bar, aes(x = phase, y = avg_count, fill = Colour_Code)) +
       axis.text = element_blank(),
       panel.grid = element_blank()
     )
-}
 
 ```
+
+
+```{r}
+
+hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls")
+
+avg_hyrox <- data.frame(phase = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"),
+                        avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28")) %>%
+  mutate(avg_seconds = as.numeric(ms(avg_time)))
+
+format_mm_ss <- function(x) {
+  sign <- ifelse(x < 0, "-", "")
+  x_abs <- abs(x)
+  sprintf("%s%02d:%02d", sign, x_abs %/% 60, x_abs %% 60)
+}
+
+
+km_splits <- hiit_joined %>%
+    group_by(phase) %>%
+    summarise(
+      duration_secs = max(seconds_elapsed, na.rm = TRUE) - min(seconds_elapsed, na.rm = TRUE),
+      avg_hr = mean(heart_rate, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      duration_mins = duration_secs / 60,
+      duration_formatted = sprintf("%02d:%02d", duration_secs %/% 60, round(duration_secs %% 60))
+    ) %>%
+  left_join(avg_hyrox, by = c('phase' = 'phase')) %>%
+  mutate(seconds_difference = avg_seconds - duration_secs,
+         diff_sec_formatted = format_mm_ss(seconds_difference),
+         faster = seconds_difference >= 0,
+         cum_avg_seconds = cumsum(seconds_difference))
+
+
+```
+
+
+```{r}
+
+
+  ggplot(data = km_splits, aes(x = phase, y = seconds_difference, fill = faster)) +
+  geom_col(width = 0.9, color = "white", show.legend = F) +
+  geom_borderline(data = km_splits, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 1.5, borderwidth = 1, alpha = 0.5) +
+  geom_point(data = km_splits, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 3, stroke = 1.5 ) +
+  
+  geom_col(width = 0.8, show.legend = F) +
+  geom_vline(xintercept = seq(0.5, length(unique(rd$hr_stacked_bar$phase)) + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+  
+  #Add Text
+  geom_shadowtext(data = km_splits %>% filter(faster == T), aes(label = diff_sec_formatted), size = 4, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = 7, angle = 90) +
+  geom_shadowtext(data = km_splits %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 4, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -7, angle = 90) +
+  geom_hline(aes(yintercept =  0), color = "gray60") +
+  scale_fill_manual(values = c("TRUE" = '#379A8B', "FALSE" = '#DB444B')) +
+  labs(
+    x = "Cumulative Time (minutes)",
+  ) +
+  theme_minimal(base_family = "Lato") +
+    theme(
+      panel.background = element_rect(color = "white", fill = "white"),
+      plot.background = element_rect(color = "white", fill = "white"),
+      plot.subtitle = element_markdown(size = 20),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      legend.title = element_blank(),
+      legend.position = "bottom"
+    )
+
+```
+
+
+```{r}
+
+p2 <- ggplot(df, aes(x = halfway_position / 60, y = relative)) +
+  #geom_shadowtext(data = df %>% head(18) %>% tail(17), aes(label = Station, x = halfway_position / 60, y = 130), size = 4.5, angle = 90, hjust = 0, family = "cantarell", color = "black", fontface = "bold", bg.colour = "white", bg.r = 0.3) +
+  geom_borderline(data = df, aes(x = halfway_position / 60, y = relative_to_average), group = 1, color = 'gray60', bordercolour = "white", linewidth = 1.5, borderwidth = 1) +
+  # Add green lines
+  geom_segment(data = df %>% filter(relative >= 0) %>% filter(Station != "Start"), aes(x = halfway_position / 60, xend = halfway_position / 60, y = 0, yend = relative), color = '#379A8B', lineend = "round", size = 6, show.legend = F) +
+  geom_segment(data = df %>% filter(relative >= 0) %>% filter(Station != "Start"), aes(x = halfway_position / 60, xend = halfway_position / 60, y = 0, yend = -10), color = 'white', size = 6, show.legend = F) +
+  # Add red lines
+  geom_segment(data = df %>% filter(relative < 0) %>% filter(Station != "Start"), aes(x = halfway_position / 60, xend = halfway_position / 60, y = 0, yend = relative), color = '#DB444B', lineend = "round", size = 6, show.legend = F) +
+  geom_segment(data = df %>% filter(relative < 0) %>% filter(Station != "Start"), aes(x = halfway_position / 60, xend = halfway_position / 60, y = 0, yend = 10), color = 'white', size = 6, show.legend = F) +
+  geom_vline(aes(xintercept =  cum_seconds / 60), color = "gray90", linewidth = 0.5) +
+  geom_hline(aes(yintercept =  0), color = "gray60") +
+  # Add text
+  geom_shadowtext(data = df %>% filter(relative >= 0) %>% filter(Station != "Start"), aes(label = Avg_Time), size = 2.8, family = "cantarell", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = 14) +
+  geom_shadowtext(data = df %>% filter(relative < 0) %>% filter(Station != "Start"), aes(label = Avg_Time), size = 2.8, family = "cantarell", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -14) +
+  #geom_shadowtext(data = df %>% head(1), aes(x = 74, y = 82), label = "Cumulative Average", size = 4.5, family = "cantarell", color = "gray90", fontface = "bold", bg.colour = "white", bg.r = 0.03, angle = -70) +
+  geom_shadowtext(data = df %>% head(1), aes(x = 42, y = 82), label = "Cumulative Average", size = 4.5, family = "cantarell", color = "gray60", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(breaks=seq(0, 200, 10)) +
+  #scale_y_continuous(limits = c(-135,200)) +
+  
+  #geom_borderline(group = 1, color = '#87274d', bordercolour = "white", linewidth = 1.5, borderwidth = 1) +
+  #geom_point(data = df, aes(x = halfway_position / 60, y = relative_to_average), shape = 21, size = 5, color = "white", fill = '#87274d', stroke = 1.5) +
+  
+  #geom_segment(data = df %>% filter(relative < 0), aes(x = halfway_position / 60, xend = halfway_position / 60, y = 0, yend = relative), color = '#DB444B', size = 4, show.legend = F) +
+  #scale_color_gradient2(
+  #  low = '#DB444B', 
+  #  mid = "black", 
+  #  high = '#379A8B', 
+  #  midpoint = -100
+  #) +
+  labs(
+    x = "Cumulative Time (minutes)",
+  ) +
+  theme_minimal(base_family = "cantarell") +
+  theme(
+    plot.title = element_text(family = "cantarell", size = 16, face = "bold"),
+    axis.title = element_text(family = "cantarell", size = 16, face = "bold"),
+    axis.text = element_text(family = "cantarell", size = 12),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(color = "white", fill = "white"),
+    plot.background = element_rect(color = "white", fill = "white"),
+  )
+
+p2
+
+#ggsave(filename = "/Users/andrewpeters/Desktop/Football_Projects/Hyrox/HYROX.Average.png", plot = p2, dpi = 900)
+
+```
+
+
+```
+
 
 
 

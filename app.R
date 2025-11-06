@@ -12,6 +12,7 @@ library(sf)
 library(shinydashboard)
 library(fuzzyjoin)
 
+
 # Source plotting helpers
 source("R/Plot_Runs.R")
 
@@ -60,8 +61,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Run Activities", tabName = "runs", icon = icon("running")),
-      menuItem("Cardio Workouts", tabName = "hiit", icon = icon("fire")),
-      menuItem("HYROX Workouts", tabName = "hyrox", icon = icon("dumbbell"))
+      menuItem("Cardio / HYROX", tabName = "hiit", icon = icon("fire"))
+      #menuItem("HYROX Workouts", tabName = "hyrox", icon = icon("dumbbell"))
     )
   ),
   
@@ -140,7 +141,25 @@ ui <- dashboardPage(
       
       # ------------------ Cardio WORKOUT TAB ------------------
       tabItem(tabName = "hiit",
+              fluidRow(
+                column(12, align = "center",
+                       switchInput(
+                         inputId = "workout_mode",
+                         label = NULL,
+                         onLabel = "HYROX",
+                         offLabel = "Cardio",
+                         value = FALSE,          # FALSE = Cardio default
+                         size = "large",
+                         onStatus = "primary",
+                         offStatus = "info"
+                       )
+                )
+              ),
+              br(),
               # --- Header ---
+              
+              conditionalPanel(
+                condition = "!input.workout_mode", 
               fluidRow(
                 column(12,
                        tags$h2(
@@ -172,7 +191,7 @@ ui <- dashboardPage(
                     style = "text-align: center;",
                     div(
                       style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
-                      fileInput("tcx_file_hiit", "Upload a HIIT TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+                      fileInput("tcx_file_hiit", "Upload a Cardio TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
                     )
                   ),
                   div(style = "margin-top: 0px;", uiOutput("activity_info_hiit"),
@@ -208,40 +227,93 @@ ui <- dashboardPage(
                              downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
                          )
                 ),
+                tabPanel("🗑️ Heart Rate Bins",
+                         div(class = "plot-card",
+                             withSpinner(plotOutput("hr_plot_bins", height = "450px"), type = 6),
+                             downloadButton("download_hr_bins_hiit", "Download PNG", class = "download-btn mt-3")
+                         )
+                ),
                 tabPanel("📊 Combined Summary",
                          div(class = "plot-card",
                              withSpinner(plotOutput("combined_plot_hiit", height = "1000px"), type = 6),
                              downloadButton("download_combined_hiit", "Download PNG", class = "download-btn mt-3")
                          )
                 ),
-              )
-      ),
-      # ------------------ Cardio WORKOUT TAB ------------------
-      tabItem(tabName = "hyrox",
-              # --- Header ---
-              fluidRow(
-                column(12,
-                       tags$h2(
-                         HTML("<i class='fa-solid fa-dumbbell'></i> HYROX Workouts"),
-                         class = "text-center mb-4 fw-bold",
-                         style = "margin-top: 20px; color: navy;"  # <-- adds space above
-                       ),
-                       tags$p(
-                         "Upload a '.tcx' file to visualise your HYROX performance.",
-                         class = "text-center text-muted mb-4"
-                       )
-                )
-              ),
-              # --- New Tab ---
-              fluidRow(
-                column(
-                  width = 12,
-                  box(title = "HYROX Data Coming Soon! 🔜", width = 12, status = "warning",
-                      solidHeader = TRUE,
-                      p("Watch this Space as we are Working on Integrating HYROX Workouts!")
+              )),
+              conditionalPanel(
+                condition = "input.workout_mode", 
+                fluidRow(
+                  column(12,
+                         tags$h2(
+                           HTML("<i class='fa-solid fa-dumbbell'></i> HYROX Workouts"),
+                           class = "text-center mb-4 fw-bold",
+                           style = "margin-top: 20px; color: navy;"  # <-- adds space above
+                         ),
+                         tags$p(
+                           "Upload a HYROX '.tcx' file to visualise your performance.",
+                           class = "text-center text-muted mb-4"
+                         )
                   )
-                )
-              ),
+                ),
+                # --- New Tab ---
+                fluidRow(
+                  column(
+                    width = 12,
+                    box(title = "HYROX Visualiser Just Launced! 🚀", width = 12, status = "success",
+                        solidHeader = TRUE,
+                        p("We now Plot HYROX Interval Data!")
+                    )
+                  )
+                ),
+                # --- Upload Section ---
+                fluidRow(
+                  column(
+                    width = 8, offset = 2,
+                    div(
+                      style = "text-align: center;",
+                      div(
+                        style = "display: inline-block; margin-bottom: 5px;",  # reduce bottom spacing
+                        fileInput("tcx_file_hyrox", "Upload a HYROX (Cardio) TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
+                      )
+                    ),
+                  ),
+                  style = "margin-bottom: 10px;"),
+                
+                tabsetPanel(
+                  type = "pills",
+                  tabPanel("🏃 Circuit Splits",
+                           div(class = "plot-card",
+                               withSpinner(plotOutput("circuit_time_hyrox", height = "450px"), type = 6),
+                               #downloadButton("download_circuit", "Download PNG", class = "download-btn mt-3")
+                           )
+                  ),
+                  tabPanel("❤️ Heart Rate (Avg per KM)",
+                           div(class = "plot-card",
+                               withSpinner(plotOutput("hr_line_plot_hyrox", height = "450px"), type = 6),
+                               #downloadButton("download_hr_line_hiit", "Download PNG", class = "download-btn mt-3")
+                           )
+                  ),
+                  tabPanel("🔥 Heart Rate Zones",
+                           div(class = "plot-card",
+                               withSpinner(plotOutput("hr_stacked_plot_hyrox", height = "450px"), type = 6),
+                               #downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
+                           )
+                  ),
+                  tabPanel("📈 Comparison to Average",
+                           div(class = "plot-card",
+                               shinyWidgets::noUiSliderInput(inputId = "label_nudge",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)
+                               ),
+                               withSpinner(plotOutput("avg_plot_hyrox", height = "450px"), type = 6),
+                               #downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
+                           )
+                  ),
+                  tabPanel("📊 Combined Summary",
+                           div(class = "plot-card",
+                               withSpinner(plotOutput("combined_plot_hyrox", height = "1000px"), type = 6),
+                               #downloadButton("download_combined_hiit", "Download PNG", class = "download-btn mt-3")
+                           )
+                  ),
+                )),
       )
     )
   )
@@ -300,6 +372,33 @@ server <- function(input, output, session) {
     read_tcx_data_hiit(current_file_hiit())
   })
   
+  #-------- HYROX Data ----------#
+  
+  # Define the reactive value to store the current file path
+  current_file_hyrox <- reactiveVal()
+  
+  # Auto-load default file on app startup
+  observe({
+    default_path <- "./activities/Sample_HYROX.tcx"
+    if (file.exists(default_path) && is.null(current_file_hyrox())) {
+      current_file_hyrox(default_path)
+    }
+  })
+  
+  # Handle file upload
+  observe({
+    req(input$tcx_file_hyrox)
+    current_file_hyrox(input$tcx_file_hyrox$datapath)
+  })
+  
+  
+  # Reactive to read TCX file
+  hyrox_data <- reactive({
+    req(current_file_hyrox())
+    read_tcx_data_hyrox(current_file_hyrox())
+  })
+  
+  
   # Reactive: summarize data for plots
   run_summaries <- reactive({
     rd <- run_data()
@@ -323,6 +422,24 @@ server <- function(input, output, session) {
   # Reactive: summarize data for plots
   hiit_summaries <- reactive({
     hd <- hiit_data()
+    rounds <- length(unique(hd$phase))
+    #max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
+    sizes <- get_plot_sizes(rounds)
+    total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
+    total_time_formatted <- format_total_time(total_seconds)
+    start_date <- format(min(hd$time, na.rm = TRUE), "%d/%m/%Y")
+    summaries <- summarize_hiit_data(hd)
+    list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
+         start_date = start_date, rounds = rounds,
+         #max_km_longer = max_km_longer,
+         circuit_splits = summaries$circuit_splits,
+         hr_df_avg = summaries$hr_df_avg,
+         hr_stacked_bar = summaries$hr_stacked_bar,
+         hiit_binned = summaries$hiit_binned)
+  })
+  
+  hyrox_summaries <- reactive({
+    hd <- hyrox_data()
     rounds <- length(unique(hd$phase))
     #max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
     sizes <- get_plot_sizes(rounds)
@@ -446,36 +563,102 @@ server <- function(input, output, session) {
     plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
   })
   
+  output$hr_plot_bins <- renderPlot({
+    req(hiit_summaries())
+    hs <- hiit_summaries()
+    
+    # plot_hiit_binned_filtered <- hs$hiit_binned
+    # 
+    # if (isTRUE(input$remove_warmup)) {
+    #   plot_hiit_binned_filtered <- hs$hiit_binned %>%
+    #     filter(!grepl("warm", phase, ignore.case = TRUE))
+    # }
+    # 
+    # rounds <- length(unique(plot_hiit_binned_filtered$phase))
+    
+    plot_hr_binned(hs$hiit_binned, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+  })
+  
   
   output$combined_plot_hiit <- renderPlot({
     req(hiit_summaries())
     hs <- hiit_summaries()
-    
+
     hr_df_avg_filtered <- hs$hr_df_avg
     plot_hr_stacked_filtered <- hs$hr_stacked_bar
     circuit_splits_filtered <- hs$circuit_splits
-    
+    #plot_hiit_binned_filtered <- hs$hiit_binned
+
     if (isTRUE(input$remove_warmup)) {
-      
+
       hr_df_avg_filtered <- hs$hr_df_avg %>%
         filter(!grepl("warm", phase, ignore.case = TRUE))
-      
+
       plot_hr_stacked_filtered <- hs$hr_stacked_bar %>%
         filter(!grepl("warm", phase, ignore.case = TRUE))
-      
+
       circuit_splits_filtered <- hs$circuit_splits %>%
         filter(!grepl("warm", phase, ignore.case = TRUE))
+
+      # plot_hiit_binned_filtered <- hs$hiit_binned %>%
+      #   filter(!grepl("warm", phase, ignore.case = TRUE))
     }
-    
+
     rounds <- length(unique(circuit_splits_filtered$phase))
-    
+
     p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
     p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
     p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
-    
+    p_hr_bins_hiit <- plot_hr_binned(hs$hiit_binned, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+
     combine_run_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit)
   })
   
+  # --- HYROX ---
+  
+
+  output$circuit_time_hyrox <- renderPlot({
+    req(hyrox_summaries())
+    hs <- hyrox_summaries()
+    
+    
+    plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+  })
+  
+  output$hr_line_plot_hyrox <- renderPlot({
+    req(hyrox_summaries())
+    hs <- hyrox_summaries()
+    
+    
+    plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer)
+  })
+  
+  output$hr_stacked_plot_hyrox <- renderPlot({
+    req(hyrox_summaries())
+    hs <- hyrox_summaries()
+
+    plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+  })
+  
+  
+  output$avg_plot_hyrox <- renderPlot({
+    req(hyrox_summaries())
+    hs <- hyrox_summaries()
+    
+    plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge)
+  })
+  
+  output$combined_plot_hyrox <- renderPlot({
+    req(hyrox_summaries())
+    hs <- hyrox_summaries()
+
+    p_circuit_hyrox <- plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+    p_average_hyrox <- plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge)
+    p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer)
+    p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+
+    combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox)
+  })
   
   # --- Download Handlers ---
   output$download_pace <- downloadHandler(
@@ -611,7 +794,25 @@ server <- function(input, output, session) {
     }
   )
   
-  
+  output$download_hr_bins_hiit <- downloadHandler(
+    filename = function() "hr_bins_hiit.png",
+    content = function(file) {
+      
+      hs <- hiit_summaries()
+      
+      plot_hiit_binned_filtered <- hs$hiit_binned
+      
+      if (isTRUE(input$remove_warmup)) {
+        plot_hiit_binned_filtered <- hs$hiit_binned %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
+      }
+      
+      rounds <- length(unique(plot_hiit_binned_filtered$phase))
+      
+      ggsave(file, plot = plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
   
   
 }
