@@ -215,7 +215,7 @@ ui <- dashboardPage(
                              downloadButton("download_circuit", "Download PNG", class = "download-btn mt-3")
                          )
                 ),
-                tabPanel("❤️ Heart Rate (Avg per KM)",
+                tabPanel("❤️ Heart Rate (Avg per Circuit)",
                          div(class = "plot-card",
                              withSpinner(plotOutput("hr_line_plot_hiit", height = "450px"), type = 6),
                              downloadButton("download_hr_line_hiit", "Download PNG", class = "download-btn mt-3")
@@ -287,7 +287,7 @@ ui <- dashboardPage(
                                #downloadButton("download_circuit", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
-                  tabPanel("❤️ Heart Rate (Avg per KM)",
+                  tabPanel("❤️ Heart Rate (Avg per Split)",
                            div(class = "plot-card",
                                withSpinner(plotOutput("hr_line_plot_hyrox", height = "450px"), type = 6),
                                #downloadButton("download_hr_line_hiit", "Download PNG", class = "download-btn mt-3")
@@ -423,7 +423,8 @@ server <- function(input, output, session) {
   hiit_summaries <- reactive({
     hd <- hiit_data()
     rounds <- length(unique(hd$phase))
-    #max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
+    avg_total_hr <- mean(hd$heart_rate, na.rm = TRUE)
+    total_hr <- max(hd$heart_rate, na.rm = TRUE)
     sizes <- get_plot_sizes(rounds)
     total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
@@ -431,7 +432,8 @@ server <- function(input, output, session) {
     summaries <- summarize_hiit_data(hd)
     list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, rounds = rounds,
-         #max_km_longer = max_km_longer,
+         avg_total_hr = avg_total_hr,
+         total_hr = total_hr,
          circuit_splits = summaries$circuit_splits,
          hr_df_avg = summaries$hr_df_avg,
          hr_stacked_bar = summaries$hr_stacked_bar,
@@ -441,7 +443,8 @@ server <- function(input, output, session) {
   hyrox_summaries <- reactive({
     hd <- hyrox_data()
     rounds <- length(unique(hd$phase))
-    #max_km_longer <- round(tail(rd$distance / 1000, 1), 2)
+    avg_total_hr <- mean(hd$heart_rate, na.rm = TRUE)
+    total_hr <- max(hd$heart_rate, na.rm = TRUE)
     sizes <- get_plot_sizes(rounds)
     total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
@@ -449,7 +452,8 @@ server <- function(input, output, session) {
     summaries <- summarize_hiit_data(hd)
     list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, rounds = rounds,
-         #max_km_longer = max_km_longer,
+         avg_total_hr = avg_total_hr,
+         total_hr = total_hr,
          circuit_splits = summaries$circuit_splits,
          hr_df_avg = summaries$hr_df_avg,
          hr_stacked_bar = summaries$hr_stacked_bar)
@@ -567,16 +571,16 @@ server <- function(input, output, session) {
     req(hiit_summaries())
     hs <- hiit_summaries()
     
-    # plot_hiit_binned_filtered <- hs$hiit_binned
-    # 
-    # if (isTRUE(input$remove_warmup)) {
-    #   plot_hiit_binned_filtered <- hs$hiit_binned %>%
-    #     filter(!grepl("warm", phase, ignore.case = TRUE))
-    # }
-    # 
-    # rounds <- length(unique(plot_hiit_binned_filtered$phase))
+    plot_hiit_binned_filtered <- hs$hiit_binned
+
+    if (isTRUE(input$remove_warmup)) {
+      plot_hiit_binned_filtered <- hs$hiit_binned %>%
+        filter(!grepl("warm", phase, ignore.case = TRUE))
+    }
+
+    rounds <- length(unique(plot_hiit_binned_filtered$phase))
     
-    plot_hr_binned(hs$hiit_binned, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+    plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
   })
   
   
@@ -587,7 +591,7 @@ server <- function(input, output, session) {
     hr_df_avg_filtered <- hs$hr_df_avg
     plot_hr_stacked_filtered <- hs$hr_stacked_bar
     circuit_splits_filtered <- hs$circuit_splits
-    #plot_hiit_binned_filtered <- hs$hiit_binned
+    plot_hiit_binned_filtered <- hs$hiit_binned
 
     if (isTRUE(input$remove_warmup)) {
 
@@ -600,8 +604,8 @@ server <- function(input, output, session) {
       circuit_splits_filtered <- hs$circuit_splits %>%
         filter(!grepl("warm", phase, ignore.case = TRUE))
 
-      # plot_hiit_binned_filtered <- hs$hiit_binned %>%
-      #   filter(!grepl("warm", phase, ignore.case = TRUE))
+       plot_hiit_binned_filtered <- hs$hiit_binned %>%
+         filter(!grepl("warm", phase, ignore.case = TRUE))
     }
 
     rounds <- length(unique(circuit_splits_filtered$phase))
@@ -609,9 +613,9 @@ server <- function(input, output, session) {
     p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
     p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
     p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
-    p_hr_bins_hiit <- plot_hr_binned(hs$hiit_binned, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+    p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
 
-    combine_run_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit)
+    combine_hyrox_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit, p_hr_bins_hiit)
   })
   
   # --- HYROX ---
@@ -659,6 +663,7 @@ server <- function(input, output, session) {
 
     combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox)
   })
+  
   
   # --- Download Handlers ---
   output$download_pace <- downloadHandler(
@@ -770,6 +775,7 @@ server <- function(input, output, session) {
       hr_df_avg_filtered <- hs$hr_df_avg
       plot_hr_stacked_filtered <- hs$hr_stacked_bar
       circuit_splits_filtered <- hs$circuit_splits
+      plot_hiit_binned_filtered <- hs$hiit_binned
       
       if (isTRUE(input$remove_warmup)) {
         
@@ -781,6 +787,9 @@ server <- function(input, output, session) {
         
         circuit_splits_filtered <- hs$circuit_splits %>%
           filter(!grepl("warm", phase, ignore.case = TRUE))
+        
+        plot_hiit_binned_filtered <- hs$hiit_binned %>%
+          filter(!grepl("warm", phase, ignore.case = TRUE))
       }
       
       rounds <- length(unique(circuit_splits_filtered$phase))
@@ -788,8 +797,9 @@ server <- function(input, output, session) {
       p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
       p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
       p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+      p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
       
-      ggsave(file, plot = combine_run_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit),
+      ggsave(file, plot = combine_hyrox_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit, p_hr_bins_hiit),
              width = 10, height = 12, dpi = 300)
     }
   )
@@ -809,7 +819,7 @@ server <- function(input, output, session) {
       
       rounds <- length(unique(plot_hiit_binned_filtered$phase))
       
-      ggsave(file, plot = plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds),
+      ggsave(file, plot = plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr),
              width = 8, height = 6, dpi = 300)
     }
   )

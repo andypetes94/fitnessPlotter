@@ -43,6 +43,8 @@ source("R/Plot_Runs.R")
 
 file <- ('./activities/Sample_HIIT.tcx')
 
+file <- ('/Users/andrewpeters/Downloads/heated_polar.tcx')
+
 ```
 
 
@@ -98,6 +100,7 @@ tcx_xml <- read_xml(file)
     by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
     match_fun = list(`>=`, `<=`)
   ) %>% 
+    drop_na() %>%
     mutate(Zone_Label = case_when(
       heart_rate > 171 ~ "Zone 5",
       heart_rate > 153 ~ "Zone 4",
@@ -108,6 +111,14 @@ tcx_xml <- read_xml(file)
   mutate(time_bin = floor(seconds_elapsed / 10)) 
   
   hiit_joined$phase <- factor(hiit_joined$phase, levels = unique(hiit_joined$phase))
+  
+  hr_stacked_bar <- hiit_joined %>%
+    mutate(Zone_Label = factor(Zone_Label, levels = c("Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"))) %>%
+    group_by(phase, Zone_Label) %>%
+    summarise(avg_hr = mean(heart_rate), avg_count = n(), .groups = "drop") %>%
+    group_by(phase) %>%
+    mutate(total_count = sum(avg_count), prop = (avg_count / total_count) * 100) %>%
+    ungroup()
 
 ```
 
@@ -116,31 +127,51 @@ tcx_xml <- read_xml(file)
 
 hiit_binned <- hiit_joined %>%
   group_by(time_bin) %>%
-  summarise(heart_rate = mean(heart_rate), Zone_Label = dplyr::last(Zone_Label))
+  reframe(heart_rate = mean(heart_rate), 
+            Zone_Label = dplyr::last(Zone_Label),
+            phase = phase)
 
+# compute left x position and a small bin offset 
+x_left <- min(hiit_binned$time_bin, na.rm = TRUE)
+x_offset <- (max(hiit_binned$time_bin, na.rm = TRUE) - x_left) * 0.01
 
 ggplot(hiit_binned, aes(x = time_bin, y = heart_rate, fill = Zone_Label)) +
   geom_col(color = NA) +
-  scale_fill_manual(breaks = c("Zone 1","Zone 2","Zone 3", "Zone 4", "Zone 5"),
-                      values = c("gray90", "#fdfa72","#FFB200", "#EB5B00", "#D91656")) +
+  
+  # HR Reference Lines
+  geom_hline(yintercept = 165, linetype = 'dashed', color = "#D91656") +
+  geom_hline(yintercept = 120, linetype = "dashed", color = "gray80") +
+  
+  # Label for 120 BPM line
+  geom_shadowtext(data = data.frame(x = x_left + x_offset, y = 120, Zone_Label = NA), aes(x = x, y = y), label = "Avg HR: 120 bpm", hjust = 0,vjust = -0.3, size = 4, family = "Lato",color = "gray80", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+  #geom_richtext(data = data.frame(x = x_left + x_offset, y = 120, Zone_Label = NA), aes(x = x, y = y), label = paste0("<img src='www/icons/heart-solid-full.png' width='10' height='10'> " ," Avg HR: 120 bpm"), hjust = 0,vjust = -0.3, size = 4, family = "Lato",color = "gray80", fontface = "bold", label.colour = NA, fill = NA) +
+  
+  # Label for Max HR Line (165 BPM)
+geom_shadowtext(data = data.frame(x = x_left + x_offset, y = 165, Zone_Label = NA), aes(x = x, y = y), label = "Max HR: 165 bpm", hjust = 0, vjust = 1.3, size = 4, family = "Lato", color = "#D91656", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+  #geom_richtext(data = data.frame(x = x_left + x_offset, y = 165, Zone_Label = NA), aes(x = x, y = y), label = paste0("<img src='www/icons/heart-solid-full.png' width='10' height='10'> " ," Max HR: 120 bpm"), hjust = 0, vjust = 1.3, size = 4, family = "Lato", color = "#D91656", fontface = "bold", label.colour = NA, fill = NA) +
+  
+  scale_fill_manual(
+    breaks = c("Zone 1","Zone 2","Zone 3","Zone 4","Zone 5"),
+    values = c("gray80", "#fdfa72","#FFB200", "#EB5B00", "#D91656")
+  ) +
   labs(
     title = "Heart Rate Over Time by Training Zones",
     x = "Time (10s bins)",
-    y = "Heart Rate (bpm)",
-    fill = "Heart Rate Zone"
+    y = "Heart Rate (bpm)"
   ) +
+  
   theme_minimal(base_family = "Lato") +
-    theme(
-      panel.background = element_rect(color = "white", fill = "white"),
-      plot.background = element_rect(color = "white", fill = "white"),
-      plot.subtitle = element_markdown(size = 20),
-      axis.text.x = element_text(size = 8, face = "bold"),
-      axis.text.y = element_blank(),
-      axis.title = element_blank(),
-      panel.grid = element_blank(),
-      legend.title = element_blank(),
-      legend.position = "bottom"
-    )
+  theme(
+    panel.background = element_rect(color = "white", fill = "white"),
+    plot.background = element_rect(color = "white", fill = "white"),
+    panel.grid = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  ) +
+  
+  coord_cartesian(clip = "off")  # allow text to extend outside plot panel
 
 
 

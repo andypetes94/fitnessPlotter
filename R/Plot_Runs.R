@@ -128,6 +128,7 @@ read_tcx_data_hiit <- function(file) {
     by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
     match_fun = list(`>=`, `<=`)
   ) %>% 
+    drop_na() %>%
     mutate(Zone_Label = case_when(
     heart_rate > 171 ~ "Zone 5",
     heart_rate > 153 ~ "Zone 4",
@@ -194,6 +195,7 @@ read_tcx_data_hyrox <- function(file) {
     by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
     match_fun = list(`>=`, `<=`)
   ) %>% 
+    drop_na() %>%
     mutate(Zone_Label = case_when(
       heart_rate > 171 ~ "Zone 5",
       heart_rate > 153 ~ "Zone 4",
@@ -327,7 +329,9 @@ summarize_hiit_data <- function(hiit_data) {
   
   hiit_binned <- hiit_data %>%
     group_by(time_bin) %>%
-    summarise(heart_rate = mean(heart_rate), Zone_Label = dplyr::last(Zone_Label))
+    reframe(heart_rate = mean(heart_rate),
+            Zone_Label = dplyr::last(Zone_Label),
+            phase = dplyr::last(phase))
   
   return(list(hr_stacked_bar = hr_stacked_bar, hr_df_avg = hr_df_avg, circuit_splits = circuit_splits, hiit_binned = hiit_binned))
 }
@@ -485,8 +489,8 @@ plot_circuit_splits <- function(circuit_splits, total_time_formatted, start_date
     geom_col(show.legend = FALSE) +
     geom_vline(xintercept = seq(0.5, rounds + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     #geom_hline(yintercept = 4, color = "gray20", linewidth = 1.5, linetype = "dashed") +
-    geom_text(aes(label = duration_formatted, y = 0.4),
-              size = sizes$bar_text, color = "white", family = "Lato", fontface = "bold") +
+    geom_text(aes(label = duration_formatted),
+              size = sizes$bar_text, color = "black", nudge_y = 0.2, family = "Lato", fontface = "bold") +
     scale_fill_gradient2(high = '#8cc5e3', mid = '#3594cc', low = '#2066a8') +
     labs(subtitle = paste0("<img src='www/icons/stopwatch-solid-full.png' width='30' height='30'> ",
                            "Circuit Split Times | Time: ",
@@ -627,18 +631,32 @@ plot_hr_stacked_hyrox <- function(hr_stacked_bar, hr_df_avg, total_time_formatte
 }
 
 
-plot_hr_binned <- function(hiit_binned, total_time_formatted, start_date, sizes, max_km_longer, rounds) {
+plot_hr_binned <- function(hiit_binned, total_time_formatted, start_date, sizes, max_km_longer, rounds, avg_total_hr, total_hr) {
+  
+  
+  # compute left x position and a small bin offset 
+  x_left <- min(hiit_binned$time_bin, na.rm = TRUE)
+  x_offset <- (max(hiit_binned$time_bin, na.rm = TRUE) - x_left) * 0.01
   
   ggplot(hiit_binned, aes(x = time_bin, y = heart_rate, fill = Zone_Label)) +
     geom_col(color = NA, show.legend = F) +
+    
+    # HR Reference Lines
+    geom_hline(yintercept = total_hr, linetype = 'dashed', color = "#D91656") +
+    geom_hline(yintercept = avg_total_hr, linetype = "dashed", color = "gray80") +
+    
+    # HR Reference Text
+    geom_shadowtext(data = data.frame(x = x_left + x_offset, y = avg_total_hr, Zone_Label = NA), aes(x = x, y = y), label = paste0("Avg HR: ", round(avg_total_hr, digits = 0), " bpm"), hjust = 0,vjust = -0.3, size = 4, family = "Lato",color = "gray", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+    geom_shadowtext(data = data.frame(x = x_left + x_offset, y = total_hr, Zone_Label = NA), aes(x = x, y = y), label = paste0("Max HR: ", total_hr, " bpm"), hjust = 0, vjust = 1.3, size = 4, family = "Lato", color = "#D91656", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+    
     scale_fill_manual(breaks = c("Zone 1","Zone 2","Zone 3", "Zone 4", "Zone 5"),
                       values = c("gray90", "#fdfa72","#FFB200", "#EB5B00", "#D91656")) +
-    scale_x_continuous(breaks = seq(0, max(hiit_binned$time_bin), by = 12), # 3 bins * 10 sec = 30 sec
+    scale_x_continuous(breaks = seq(0, max(hiit_binned$time_bin), by = 30), # 3 bins * 10 sec = 30 sec
                        labels = function(x) sprintf("%02d:%02d", (x*10) %/% 60, (x*10) %% 60),
                        expand = expansion(mult = c(0, 0))) +
     labs(subtitle = paste0("<img src='www/icons/heart-solid-full.png' width='30' height='30'> ",
-                           "Heart Rate Bins | Time: ",
-                           total_time_formatted, " | ", start_date, " </span>")) +
+                           "Heart Rate Bins | Max HR: ",
+                           total_hr, " BPM |  Avg HR: ", round(avg_total_hr, digits = 0), " BPM</span>")) +
     theme_minimal(base_family = "Lato") +
     theme(
       panel.background = element_rect(color = "white", fill = "white"),
