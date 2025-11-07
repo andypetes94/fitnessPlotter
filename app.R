@@ -303,19 +303,19 @@ ui <- dashboardPage(
                   tabPanel("🏃 Circuit Splits",
                            div(class = "plot-card",
                                withSpinner(plotOutput("circuit_time_hyrox", height = "450px"), type = 6),
-                               #downloadButton("download_circuit", "Download PNG", class = "download-btn mt-3")
+                               downloadButton("download_circuit_hyrox", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
                   tabPanel("❤️ Heart Rate (Avg per Split)",
                            div(class = "plot-card",
                                withSpinner(plotOutput("hr_line_plot_hyrox", height = "450px"), type = 6),
-                               #downloadButton("download_hr_line_hiit", "Download PNG", class = "download-btn mt-3")
+                               downloadButton("download_hr_line_hyrox", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
                   tabPanel("🔥 Heart Rate Zones",
                            div(class = "plot-card",
                                withSpinner(plotOutput("hr_stacked_plot_hyrox", height = "450px"), type = 6),
-                               #downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
+                               downloadButton("download_hr_stacked_hyrox", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
                   tabPanel("📈 Comparison to Average",
@@ -328,19 +328,20 @@ ui <- dashboardPage(
                            div(class = "plot-card",
                                shinyWidgets::noUiSliderInput(inputId = "label_nudge",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)),
                                withSpinner(plotOutput("avg_plot_hyrox", height = "450px"), type = 6),
-                               #downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
+                               downloadButton("download_avg_hyrox", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
                           conditionalPanel(
                   condition = "input.hyrox_input_mode == 'manual'",
                   fluidRow(
                       column(
-                        width = 8, offset = 2,
+                        width = 10, offset = 1,
                         h4("Enter Your HYROX Splits (MM:SS):"),
                         DTOutput("hyrox_manual_table"),
                         br(),
                         shinyWidgets::noUiSliderInput(inputId = "label_nudge_manual",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)),
-                        withSpinner(plotOutput("avg_plot_hyrox_manual", height = "450px"), type = 6)
+                        withSpinner(plotOutput("avg_plot_hyrox_manual", height = "450px"), type = 6),
+                        downloadButton("download_avg_manual_hyrox", "Download PNG", class = "download-btn mt-3")
                       )
                     ),
                   
@@ -349,7 +350,7 @@ ui <- dashboardPage(
                   tabPanel("📊 Combined Summary",
                            div(class = "plot-card",
                                withSpinner(plotOutput("combined_plot_hyrox", height = "1000px"), type = 6),
-                               #downloadButton("download_combined_hiit", "Download PNG", class = "download-btn mt-3")
+                               downloadButton("download_combined_hyrox", "Download PNG", class = "download-btn mt-3")
                            )
                   )
                   ),
@@ -548,8 +549,8 @@ server <- function(input, output, session) {
   
   hyrox_template <- reactiveVal(
     data.frame(
-      station = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"),
-      time = rep("04:00", 16),
+      station = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Carry","Run 7","Lunges","Run 8","Wall Balls"),
+      time = rep("04:30", 16),
       avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28"),
       stringsAsFactors = FALSE
     )
@@ -593,7 +594,7 @@ server <- function(input, output, session) {
              faster = seconds_difference >= 0,
              cum_avg_seconds = cumsum(seconds_difference))
     
-    df$phase <- factor(df$phase, levels = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"))
+    df$phase <- factor(df$phase, levels = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Carry","Run 7","Lunges","Run 8","Wall Balls"))
     
     df
   })
@@ -961,6 +962,84 @@ server <- function(input, output, session) {
     }
   )
   
+  output$download_circuit_hyrox <- downloadHandler(
+    filename = function() "hr_bins_hyrox.png",
+    content = function(file) {
+    
+      hs <- hyrox_summaries()
+      
+      
+      ggsave(file, plot = plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  output$download_hr_line_hyrox <- downloadHandler(
+    filename = function() "hr_line_hyrox.png",
+    content = function(file) {
+      
+      hs <- hyrox_summaries()
+      
+      
+      ggsave(file, plot = plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  output$download_hr_stacked_hyrox <- downloadHandler(
+    filename = function() "hr_stacked_hyrox.png",
+    content = function(file) {
+      
+      hs <- hyrox_summaries()
+      
+      
+      ggsave(file, plot = plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds),
+             width = 8, height = 6, dpi = 300)
+    }
+  )
+  
+  
+  output$download_avg_hyrox <- downloadHandler(
+    filename = function() "avg_hyrox.png",
+    content = function(file) {
+      
+      hs <- hyrox_summaries()
+      
+      ggsave(file, plot = plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge),
+             width = 8, height = 6, dpi = 300)
+      
+    }
+  )
+  
+  output$download_avg_manual_hyrox <- downloadHandler(
+    filename = function() "avg_manual_hyrox.png",
+    content = function(file) {
+      
+      ggsave(file, plot = plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual),
+             width = 8, height = 6, dpi = 300)
+      
+    }
+  )
+  
+  output$download_combined_hyrox <- downloadHandler(
+    filename = function() "combined_hyrox.png",
+    content = function(file) {
+      
+      hs <- hyrox_summaries()
+      
+      p_circuit_hyrox <- plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds) + labs(caption = NULL)
+      if (input$hyrox_input_mode != "manual") {
+        p_average_hyrox <- plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge) + labs(caption = NULL)
+      } else {
+        p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual) + labs(caption = NULL)
+      }
+      p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+      p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+      
+      ggsave(file, plot = combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox),
+             width = 10, height = 12, dpi = 300)
+    }
+  )
   
 }
 

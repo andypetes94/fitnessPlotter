@@ -168,7 +168,7 @@ read_tcx_data_hyrox <- function(file) {
   hiit_trackpoints <- xml_find_all(activity_node, ".//Lap")
   trackpoints <- xml_find_all(hiit_trackpoints, ".//Trackpoint")
   
-  hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls")
+  hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Carry","Run 7","Lunges","Run 8","Wall Balls")
   
   hiit_data <- tibble(
     time = sapply(trackpoints, function(x) xml_text(xml_find_first(x, ".//Time"))),
@@ -227,25 +227,25 @@ format_total_time <- function(total_seconds) {
 # ---- 3. Adjust plot sizes dynamically ----
 get_plot_sizes <- function(max_km) {
   if (max_km < 10) {
-    return(list(stacked_text = 6, stacked_axis_text = 12, bar_text = 6,
+    return(list(stacked_text = 5.5, stacked_axis_text = 11, bar_text = 5,
                 geom_point_size = 12, geom_point_stroke = 1.5,
-                point_text_size = 4, geom_line_width = 6))
+                point_text_size = 3.5, geom_line_width = 6))
   } else if (max_km > 10 & max_km < 20) {
-    return(list(stacked_text = 5, stacked_axis_text = 11, bar_text = 4,
-                geom_point_size = 12, geom_point_stroke = 1.5,
-                point_text_size = 4, geom_line_width = 5))
+    return(list(stacked_text = 4, stacked_axis_text = 8, bar_text = 4,
+                geom_point_size = 10, geom_point_stroke = 1.5,
+                point_text_size = 3, geom_line_width = 5))
   } else if (max_km >= 20 & max_km < 25) {
-    return(list(stacked_text = 4, stacked_axis_text = 10, bar_text = 3,
-                geom_point_size = 10, geom_point_stroke = 1,
-                point_text_size = 3.5, geom_line_width = 4))
-  } else if (max_km >= 25 & max_km < 30) {
-    return(list(stacked_text = 3, stacked_axis_text = 8, bar_text = 2,
+    return(list(stacked_text = 3.5, stacked_axis_text = 6, bar_text = 3.5,
                 geom_point_size = 8, geom_point_stroke = 1,
                 point_text_size = 3, geom_line_width = 4))
+  } else if (max_km >= 25 & max_km < 30) {
+    return(list(stacked_text = 2, stacked_axis_text = 5, bar_text = 2,
+                geom_point_size = 8, geom_point_stroke = 1,
+                point_text_size = 2.5, geom_line_width = 4))
   } else if (max_km >= 30) {
-    return(list(stacked_text = 0, stacked_axis_text = 6, bar_text = 0,
+    return(list(stacked_text = 0, stacked_axis_text = 4, bar_text = 1,
                 geom_point_size = 6, geom_point_stroke = 0.5,
-                point_text_size = 2.5, geom_line_width = 6))
+                point_text_size = 2, geom_line_width = 6))
   } else {
     return(list(stacked_text = 0, stacked_axis_text = 0, bar_text = 0,
                 geom_point_size = 0, geom_point_stroke = 0,
@@ -434,6 +434,7 @@ plot_km_splits <- function(km_splits, total_time_formatted, start_date, sizes, m
       axis.title = element_blank(),
       #axis.text = element_blank(),
       axis.text.x = element_text(size = sizes$stacked_axis_text, face = "bold"),
+      axis.text.y = element_blank(),
       panel.grid = element_blank()
     )
 }
@@ -539,6 +540,7 @@ plot_circuit_splits <- function(circuit_splits, total_time_formatted, start_date
       axis.title = element_blank(),
       #axis.text = element_blank(),
       axis.text.x = element_text(size = sizes$stacked_axis_text, face = "bold"),
+      axis.text.y = element_blank(),
       panel.grid = element_blank()
     )
 }
@@ -584,9 +586,9 @@ plot_hyrox_split <- function(circuit_splits, total_time_formatted, start_date, r
 plot_hyrox_average <- function(circuit_splits, total_time_formatted, start_date, sizes, max_km_longer, rounds, nudge_text) {
   
   
-  hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls")
+  hyrox_labels <- c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Carry","Run 7","Lunges","Run 8","Wall Balls")
   
-  avg_hyrox <- data.frame(phase = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"),
+  avg_hyrox <- data.frame(phase = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Carry","Run 7","Lunges","Run 8","Wall Balls"),
                           avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28")) %>%
     mutate(avg_seconds = as.numeric(ms(avg_time)))
   
@@ -607,16 +609,16 @@ plot_hyrox_average <- function(circuit_splits, total_time_formatted, start_date,
   
   ggplot(data = circuit_splits_updated, aes(x = phase, y = seconds_difference, fill = faster)) +
     geom_col(width = 0.9, color = "white", show.legend = F) +
-    geom_borderline(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 2.5, borderwidth = 1, alpha = 0.5) +
-    geom_line(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', linewidth = 3, alpha = 0.3) +
-    geom_point(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 5, stroke = 2 ) +
+    #geom_borderline(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 2.5, borderwidth = 1, alpha = 0.5) +
+    geom_line(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', linewidth = 2, alpha = 0.3) +
+    geom_point(data = circuit_splits_updated, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 3, stroke = 1.5) +
     
     geom_col(width = 0.8, show.legend = F) +
     geom_vline(xintercept = seq(0.5, rounds + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     
     #Add Text
-    geom_shadowtext(data = circuit_splits_updated %>% filter(faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = nudge_text) +
-    geom_shadowtext(data = circuit_splits_updated %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -1*nudge_text) +
+    geom_shadowtext(data = circuit_splits_updated %>% filter(faster == T), aes(label = diff_sec_formatted), size = 3.5, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = nudge_text) +
+    geom_shadowtext(data = circuit_splits_updated %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 3.5, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -1*nudge_text) +
     geom_hline(aes(yintercept =  0), color = "gray60") +
     scale_fill_manual(values = c("TRUE" = '#379A8B', "FALSE" = '#DB444B')) +
     labs(subtitle = paste0("<img src='www/icons/dumbbell-solid-full.png' width='30' height='30'> ",
@@ -649,16 +651,16 @@ plot_hyrox_average_manual <- function(manual_hyrox_data, nudge_text) {
   
   ggplot(data = manual_hyrox_data, aes(x = phase, y = seconds_difference, fill = faster)) +
     geom_col(width = 0.9, color = "white", show.legend = F) +
-    geom_borderline(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 2.5, borderwidth = 1, alpha = 0.5) +
-    geom_line(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', linewidth = 3, alpha = 0.3) +
-    geom_point(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 5, stroke = 2 ) +
+    #geom_borderline(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 2.5, borderwidth = 1, alpha = 0.5) +
+    geom_line(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', linewidth = 2, alpha = 0.3) +
+    geom_point(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 3, stroke = 1.5) +
     
     geom_col(width = 0.8, show.legend = F) +
     geom_vline(xintercept = seq(0.5, 16 + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
     
     #Add Text
-    geom_shadowtext(data = manual_hyrox_data %>% filter(faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = nudge_text) +
-    geom_shadowtext(data = manual_hyrox_data %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -1*nudge_text) +
+    geom_shadowtext(data = manual_hyrox_data %>% filter(faster == T), aes(label = diff_sec_formatted), size = 3.5, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = nudge_text) +
+    geom_shadowtext(data = manual_hyrox_data %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 3.5, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -1*nudge_text) +
     geom_hline(aes(yintercept =  0), color = "gray60") +
     scale_fill_manual(values = c("TRUE" = '#379A8B', "FALSE" = '#DB444B')) +
     labs(subtitle = paste0("<img src='www/icons/dumbbell-solid-full.png' width='30' height='30'> ",
