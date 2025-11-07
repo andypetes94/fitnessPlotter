@@ -49,7 +49,8 @@ ui <- dashboardPage(
   
   # --- Header ---
   dashboardHeader(
-    title = "fitnessPlotter",
+    #title = "fitnessPlotter",
+    title = tags$div(tags$img(src = "logo_white.png", height = "30px")),
     
     dropdownMenu(
       type = "messages", badgeStatus = "success",
@@ -78,6 +79,8 @@ ui <- dashboardPage(
               # --- Header ---
               fluidRow(
                 column(12,
+                       tags$img(src = "logo_black.png", height = "100px",
+                                style = "display:block; margin-left:auto; margin-right:auto;"),
                        tags$h2(
                          HTML("<i class='fa-solid fa-person-running title-icon'></i> Run Visualiser"),
                          class = "text-center mb-4 fw-bold",
@@ -143,6 +146,8 @@ ui <- dashboardPage(
       tabItem(tabName = "hiit",
               fluidRow(
                 column(12, align = "center",
+                       tags$img(src = "logo_black.png", height = "100px",
+                                style = "display:block; margin-left:auto; margin-right:auto;"),
                        switchInput(
                          inputId = "workout_mode",
                          label = NULL,
