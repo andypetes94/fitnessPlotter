@@ -622,11 +622,18 @@ server <- function(input, output, session) {
   output$combined_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
-    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
+    
+    p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) +
+      labs(caption = NULL)
+    
+    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer) +
+      labs(caption = NULL)
+    
     p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
+    
     combine_run_plots(p_pace, p_hr_line, p_hr_stacked)
   })
+  
   
   output$runMap <- renderTmap({
     req(run_data())  # ensure data is available
@@ -728,9 +735,9 @@ server <- function(input, output, session) {
 
     rounds <- length(unique(circuit_splits_filtered$phase))
 
-    p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
-    p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
-    p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+    p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
+    p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+    p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
     p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
 
     combine_hyrox_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit, p_hr_bins_hiit)
@@ -782,13 +789,13 @@ server <- function(input, output, session) {
     req(hyrox_summaries())
     hs <- hyrox_summaries()
 
-    p_circuit_hyrox <- plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+    p_circuit_hyrox <- plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds) + labs(caption = NULL)
     if (input$hyrox_input_mode != "manual") {
-    p_average_hyrox <- plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge)
+    p_average_hyrox <- plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge) + labs(caption = NULL)
     } else {
-      p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual)
+      p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual) + labs(caption = NULL)
     }
-    p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer)
+    p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
     p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
 
     combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox)
@@ -827,9 +834,9 @@ server <- function(input, output, session) {
     filename = function() "combined_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
-      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
-      p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
+      p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) + labs(caption = NULL)
+      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer) + labs(caption = NULL)
+      p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) + labs(caption = NULL)
       ggsave(file, plot = combine_run_plots(p_pace, p_hr_line, p_hr_stacked),
              width = 10, height = 12, dpi = 300)
     }
@@ -924,9 +931,9 @@ server <- function(input, output, session) {
       
       rounds <- length(unique(circuit_splits_filtered$phase))
       
-      p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
-      p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
-      p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds)
+      p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
+      p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+      p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
       p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
       
       ggsave(file, plot = combine_hyrox_plots(p_circuit_hiit, p_hr_line_hiit, p_hr_stacked_hiit, p_hr_bins_hiit),
