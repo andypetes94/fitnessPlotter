@@ -1,143 +1,50 @@
-# 🏃‍♂️ Garmin Run Visualiser
+<img src="www/logo_black.png" alt="Logo" width="200">
 
-This project parses and visualises **Garmin `.tcx` activity files**, producing clean and informative charts of your **running performance** — including heart rate zones, pace splits, and combined visual summaries.  
+# fitnessPlotter
 
-You can use this package in **two ways**:
-1. 📊 From the **command line** using `Plot_Runs.R`
-2. 🌐 Interactively via the **Shiny web app** (`app.R`)
+[![R-CMD-check](https://github.com/andypetes94/fitnessPlotter/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/andypetes94/fitnessPlotter/actions/workflows/R-CMD-check.yaml)
+[![R-version](https://img.shields.io/badge/R-4.3.1-blue.svg)](https://cran.r-project.org/)
+[![Shiny](https://img.shields.io/badge/Shiny-App-success)](https://andypetes.shinyapps.io/fitnessPlotter/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Web Application has been deployed and can be found 👇: 
-
-[Shiny web app](https://andypetes.shinyapps.io/fitnessPlotter/)
-
----
-
-## ⚡️ Quick Start
-
-```bash
-# Run from the command line (generate charts)
-Rscript Plot_Runs.R ./activities/*.tcx ./Charts
-
-# Or launch interactive Shiny app
-R -e "shiny::runApp('app.R')"
-```
+Run visualisation & performance analytics tool built with **R Shiny**, designed for runners, HIIT, and HYROX enthusiasts.
 
 ---
 
-## 🎨 Features
+## 📌 About
 
-1. **Kilometre Split Chart**: Bar chart displaying pace (duration per kilometre).
-2. **Average Heart Rate Line Chart**: Line chart showing average heart rate per kilometre with points.
-3. **Heart Rate Zones Stacked Chart**: Stacked bar chart showing proportion of time spent in different heart rate zones:
+`fitnessPlotter` allows you to upload your Garmin `.tcx` files and visualize:
 
-   * Zone 5: Red
-   * Zone 4: Orange
-   * Zone 3: Yellow
-   * Other: Gray
-4. **Combined Chart**: All three charts stacked vertically.
+* Pace splits per kilometer
+* Heart rate per km / per circuit
+* Heart rate zones
+* Combined summary plots
+* Map of your run
+* HYROX interval comparisons (manual or from Garmin/TCX data)
 
-## 📁 Project Structure
-
-```
-fitnessPlotter/
-├── R/ # Contains function library
-│ └── Plot_Runs.R # Core functions for parsing and plotting
-│ └── init.R # Initialization script for installing/loading dependencies
-├── activities/ # Sample Garmin .tcx activities
-│ └── sample_5k.tcx
-├── app.R # Shiny app for interactive visualisation
-├── README.md # This file
-├── .Rproj.user/ # RStudio project files (usually ignored in Git)
-├── Plot_Runs.R # CLI script to generate plots from .tcx files
-├── GarminPlots.Rproj # RStudio project file
-└── .gitignore # Recommended to ignore .Rproj
-```
-
-* `R/Plot_Runs.R` - functions for parsing TCX, summarising, and plotting.
-* `Plot_Runs.R` - command-line script for batch processing activities.
-* `app.R` - Shiny app to interactively visualise a single TCX file.
-* `activities/` - sample Garmin TCX files.
-* `R/init.R` - helper to install and load required packages.
-
-## ⚙ Getting Started
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/yourusername/fitnessPlotter.git
-cd fitnessPlotter
-```
-
-### 2. Install dependencies
-
-Open R or RStudio in the project directory and run:
-
-```r
-source("R/init.R")  # loads the init() function
-init()               # installs and loads all required packages
-```
-
-### 3. Example Activity
-
-A sample activity is included for testing:
-
-```
-activities/2025-10-01T11/23/52+00/00_20556010525.tcx
-```
-
-## 📘 Notes
-
-* `R/init.R` ensures all packages including `shiny`, `ggplot2`, `patchwork`, `xml2`, and `fontawesome` are installed.
-* Plots dynamically adjust sizes based on the total distance of the run.
-* Font Awesome is used for icons in plot subtitles (install locally if needed).
+The app automatically generates **publication-ready plots**, with intuitive color coding for faster/slower splits.
 
 ---
 
-## 🧩 Usage Options
+## 🖥 Features
 
-### 1️⃣ Command-line Script (`Plot_Runs.R`)
+### Run Activities
 
-Run the batch visualisation script directly from your terminal or RStudio Console:
+* Upload a `.tcx` file from Garmin
+* Visualize pace, heart rate, and combined plots
+* Interactive tables and plots with download options
 
-```bash
-Rscript Plot_Runs.R ./activities/*.tcx ./Charts
-```
+### Cardio / HIIT
 
-**Arguments:**
-| Argument | Description |
-|-----------|-------------|
-| `<tcx_files>` | One or more `.tcx` files, or a wildcard (e.g. `./activities/*.tcx`) |
-| `<output_root>` | Directory where the generated plots will be saved |
+* Upload cardio `.tcx` files
+* Circuit-based heart rate visualization
+* Combined summary plots
 
-Each `.tcx` file produces:
-- `*_pace.png` – kilometre splits (pace duration)
-- `*_hr_line.png` – average heart rate by kilometre
-- `*_hr_stacked.png` – time spent in HR zones
-- `*_combined.png` – combined view of all three
+### HYROX Workouts
 
----
-
-### 2️⃣ Shiny Web App (`app.R`)
-
-For an interactive experience, launch the Shiny dashboard:
-
-```r
-shiny::runApp("app.R")
-```
-
-This opens a browser interface where you can:
-- Upload a **.tcx** file  
-- View 4 visualisations (pace, HR line, HR zones, combined)
-- Download any chart as a `.png` file
-
-#### 🧭 Navigation
-
-| Tab | Description |
-|------|-------------|
-| **Pace Splits** | Visualises pace per kilometre |
-| **Heart Rate** | Average HR by distance |
-| **Heart Rate Zones** | Stacked proportion of time in each HR zone |
-| **Combined** | All three charts arranged together |
+* Compare splits vs average
+* Manual entry for missing or custom HYROX splits
+* Download individual or combined plots
 
 ---
 
@@ -151,62 +58,78 @@ Below are sample output charts generated from a sample `.tcx` file:
 | HR Line | ![HR Line](Charts/sample_5k/sample_5k_hr_line.png) |
 | HR Zones | ![HR Zones](Charts/sample_5k/sample_5k_hr_stacked.png) |
 | Combined View | ![Combined](Charts/sample_5k/sample_5k_combined.png) |
+| HR Bins | ![HR Bins](Charts/sample_cardio/hr_bins_hiit.png) |
+| HYROX Splits | ![HYROX Splits](Charts/sample_hyrox/avg_hyrox.png) |
+| Combined HYROX | ![Combined HYROX](Charts/sample_hyrox/combined_hyrox.png) |
 
 ---
 
-## 🔍 Modular Design
-
-The plotting logic is defined in **`R/Plot_Runs.R`**, which provides the following key functions:
-
-| Function | Purpose |
-|-----------|----------|
-| `read_tcx_data(file)` | Parses a `.tcx` file into a tidy `tibble` |
-| `get_plot_sizes(max_km)` | Dynamically adjusts font and point sizes by distance |
-| `summarize_run_data(run_data)` | Computes HR summaries and kilometre splits |
-| `plot_hr_stacked(...)` | Creates stacked HR zone bar chart |
-| `plot_hr_line(...)` | Creates HR average line chart |
-| `plot_km_splits(...)` | Creates pace-per-kilometre chart |
-| `combine_run_plots(...)` | Combines the three plots vertically |
+> You can generate your own outputs by uploading your `.tcx` files.
 
 ---
 
-## 🧠 Tips
+## 🚀 Run the App
 
-- Ensure `.tcx` files include **latitude, longitude, heart rate**, and **distance** data.  
-- Non-running activities are automatically skipped.  
-- The app uses **Font Awesome** for icons — ensure it’s available via your system fonts or embedded through `{fontawesome}`.
+### Option 1: ShinyApps.io
 
----
+[Launch fitnessPlotter](https://andypetes.shinyapps.io/fitnessPlotter/)
 
-## ✅ Example Workflow
+### Option 2: Locally in R
 
-```bash
-# 1. Generate charts for all activities
-Rscript Plot_Runs.R ./activities/*.tcx ./Charts
+```R
+# Clone the repo
+git clone https://github.com/andypetes94/fitnessPlotter.git
+setwd("fitnessPlotter")
 
-# 2. View charts
-open Charts/2025-10-01T11_23_52+00_00_20556010525/
+# Install dependencies
+install.packages(c("shiny", "bslib", "shinyWidgets", "shinycssloaders", "patchwork",
+                   "ggplot2", "dplyr", "fontawesome", "fresh", "tmap", "sf",
+                   "shinydashboard", "fuzzyjoin", "DT"))
 
-# 3. Launch the Shiny app
-R -e "shiny::runApp('app.R')"
+# Run app
+shiny::runApp("app.R")
 ```
 
----
+### Option 3: RStudio Cloud
 
-## 🚀 Initialisation
-
-This repository includes an **`init.R`** script that automatically installs all dependencies.
-
-Simply run this once from your R console:
-
-```r
-source("init.R")
-```
-
-This ensures all required libraries are available before using the CLI tool or launching the Shiny app.
+[![Run in RStudio Cloud](https://img.shields.io/badge/Run%20in-RStudio%20Cloud-blue?style=flat\&logo=rstudio)](https://rstudio.cloud/project/)
 
 ---
 
-## 📜 License
+## 🏋️ HYROX Workouts Explained
 
-MIT License © 2025 [Your Name]
+HYROX is a functional fitness race combining running with various gym-style workouts:
+
+* Run segments between each workout
+* Stations include SkiErg, Sled Push/Pull, Burpees, Rowing, Carry, Lunges, Wall Balls
+* `fitnessPlotter` allows:
+
+  * Comparison of your times vs average
+  * Visualization of faster/slower splits
+  * Manual input for personal HYROX plans
+
+---
+
+## 🧰 Dependencies
+
+* `shiny`, `shinydashboard`, `bslib`
+* `ggplot2`, `patchwork`, `dplyr`
+* `tmap`, `sf` for mapping
+* `shinyWidgets`, `shinycssloaders`, `DT`
+* `fuzzyjoin`, `fontawesome`, `fresh`
+
+All required packages are listed in `app.R` and can be installed via CRAN.
+
+---
+
+## ⚡ License
+
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
+
+## 📬 Contact
+
+Created by [Andy Petes](https://github.com/andypetes94)
+For feedback, issues, or feature requests, please open an issue on GitHub.
+
