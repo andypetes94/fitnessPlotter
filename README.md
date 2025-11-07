@@ -2,9 +2,9 @@
 
 # fitnessPlotter
 
-[![R-CMD-check](https://github.com/andypetes94/fitnessPlotter/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/andypetes94/fitnessPlotter/actions/workflows/R-CMD-check.yaml)
+[![Shiny App](https://img.shields.io/badge/Shiny-App-blue)](https://andypetes.shinyapps.io/fitnessPlotter/)
+![Last Commit](https://img.shields.io/github/last-commit/andypetes94/fitnessPlotter)
 [![R-version](https://img.shields.io/badge/R-4.3.1-blue.svg)](https://cran.r-project.org/)
-[![Shiny](https://img.shields.io/badge/Shiny-App-success)](https://andypetes.shinyapps.io/fitnessPlotter/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Run visualisation & performance analytics tool built with **R Shiny**, designed for runners, HIIT, and HYROX enthusiasts.
