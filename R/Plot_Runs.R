@@ -593,6 +593,39 @@ plot_hyrox_average <- function(circuit_splits, total_time_formatted, start_date,
       legend.position = "bottom"
     )
   
+}
+
+plot_hyrox_average_manual <- function(manual_hyrox_data, nudge_text) {
+  
+  
+  ggplot(data = manual_hyrox_data, aes(x = phase, y = seconds_difference, fill = faster)) +
+    geom_col(width = 0.9, color = "white", show.legend = F) +
+    geom_borderline(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', bordercolour = "white", linewidth = 2.5, borderwidth = 1, alpha = 0.5) +
+    geom_line(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), group = 1, color = 'gray60', linewidth = 3, alpha = 0.3) +
+    geom_point(data = manual_hyrox_data, aes(x = phase, y = cum_avg_seconds), shape = 21, color = 'white', fill = 'gray60', size = 5, stroke = 2 ) +
+    
+    geom_col(width = 0.8, show.legend = F) +
+    geom_vline(xintercept = seq(0.5, 16 + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
+    
+    #Add Text
+    geom_shadowtext(data = manual_hyrox_data %>% filter(faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#379A8B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = nudge_text) +
+    geom_shadowtext(data = manual_hyrox_data %>% filter(!faster == T), aes(label = diff_sec_formatted), size = 5, family = "Lato", color = '#DB444B', fontface = "bold", bg.colour = "white", bg.r = 0.03, nudge_y = -1*nudge_text) +
+    geom_hline(aes(yintercept =  0), color = "gray60") +
+    scale_fill_manual(values = c("TRUE" = '#379A8B', "FALSE" = '#DB444B')) +
+    labs(subtitle = paste0("<img src='www/icons/dumbbell-solid-full.png' width='30' height='30'> ",
+                           "Comparison to Average </span>")) +
+    theme_minimal(base_family = "Lato") +
+    theme(
+      panel.background = element_rect(color = "white", fill = "white"),
+      plot.background = element_rect(color = "white", fill = "white"),
+      plot.subtitle = element_markdown(size = 20),
+      axis.text.x = element_text(size = 8, face = "bold"),
+      axis.text.y = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      legend.title = element_blank(),
+      legend.position = "bottom"
+    )
   
 }
 

@@ -11,6 +11,7 @@ library(tmap)
 library(sf)
 library(shinydashboard)
 library(fuzzyjoin)
+library(DT)
 
 
 # Source plotting helpers
@@ -45,8 +46,6 @@ mytheme <- create_theme(
 
 # --- UI ---
 ui <- dashboardPage(
-  #skin = "blue",   # optional theme colour
-  
   # --- Header ---
   dashboardHeader(
     #title = "fitnessPlotter",
@@ -69,6 +68,22 @@ ui <- dashboardPage(
   
   # --- Body ---
   dashboardBody(
+    # Send screen width to Shiny
+    tags$script(HTML("
+    $(document).on('shiny:connected', function() {
+      Shiny.setInputValue('screen_width', window.innerWidth);
+    });
+    $(window).resize(function(){
+      Shiny.setInputValue('screen_width', window.innerWidth);
+    });
+  ")),
+    tags$style(HTML("
+  table.dataTable tbody tr.selected,
+  table.dataTable tbody tr.selected td {
+    background-color: #f2f2f2 !important;
+    color: #000000 !important;
+  }
+")),
     use_theme(mytheme),
     includeCSS("www/custom.css"),
     tabItems(
@@ -270,7 +285,6 @@ ui <- dashboardPage(
                     )
                   )
                 ),
-                # --- Upload Section ---
                 fluidRow(
                   column(
                     width = 8, offset = 2,
@@ -305,20 +319,41 @@ ui <- dashboardPage(
                            )
                   ),
                   tabPanel("📈 Comparison to Average",
+                           fluidRow(
+                             div(style = "margin-top: 20px; display:flex; justify-content:center; align-items:center; gap:40px;",
+                                 radioButtons(inputId = "hyrox_input_mode",label = "Choose Data Input Mode:",choices = c("Use Uploaded Garmin/TCX File" = "tcx", "Enter Times Manually" = "manual"),selected = "tcx",inline = TRUE),
+                           )),
+                           conditionalPanel(
+                             condition = "input.hyrox_input_mode == 'tcx'",
                            div(class = "plot-card",
-                               shinyWidgets::noUiSliderInput(inputId = "label_nudge",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)
-                               ),
+                               shinyWidgets::noUiSliderInput(inputId = "label_nudge",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)),
                                withSpinner(plotOutput("avg_plot_hyrox", height = "450px"), type = 6),
                                #downloadButton("download_hr_stacked_hiit", "Download PNG", class = "download-btn mt-3")
                            )
                   ),
+                          conditionalPanel(
+                  condition = "input.hyrox_input_mode == 'manual'",
+                  fluidRow(
+                      column(
+                        width = 8, offset = 2,
+                        h4("Enter Your HYROX Splits (MM:SS):"),
+                        DTOutput("hyrox_manual_table"),
+                        br(),
+                        shinyWidgets::noUiSliderInput(inputId = "label_nudge_manual",label = "Label Offset",min = 0,max = 50,value = 5,step = 1,color = "#3498db",format = wNumbFormat(decimals = 0)),
+                        withSpinner(plotOutput("avg_plot_hyrox_manual", height = "450px"), type = 6)
+                      )
+                    ),
+                  
+                  
+                  )),
                   tabPanel("📊 Combined Summary",
                            div(class = "plot-card",
                                withSpinner(plotOutput("combined_plot_hyrox", height = "1000px"), type = 6),
                                #downloadButton("download_combined_hiit", "Download PNG", class = "download-btn mt-3")
                            )
+                  )
                   ),
-                )),
+                ),
       )
     )
   )
@@ -327,6 +362,29 @@ ui <- dashboardPage(
 
 # --- Server ---
 server <- function(input, output, session) {
+  
+  observeEvent(input$screen_width, {
+    
+    # Threshold:
+    # < 992 px = phones + tablets in portrait mode
+    if (!is.null(input$screen_width) && input$screen_width < 992) {
+      sendSweetAlert(
+        session,
+        title = NULL,
+        text = tags$div(
+          tags$img(src = "logo_black.png", height = "40px",
+                   style="display:block;margin-left:auto;margin-right:auto;margin-bottom:12px;"),
+          tags$strong("Optimized for Desktop 💻"),
+          tags$br(),
+          "The full dashboard experience works best on a computer.",
+          style="text-align:center;"
+        ),
+        html = TRUE,
+        type = "info",
+        btn_labels = "Continue"
+      )
+    }
+  }, ignoreInit = FALSE)
   
   # Define the reactive value to store the current file path
   current_file <- reactiveVal()
@@ -446,6 +504,7 @@ server <- function(input, output, session) {
   })
   
   hyrox_summaries <- reactive({
+    
     hd <- hyrox_data()
     rounds <- length(unique(hd$phase))
     avg_total_hr <- mean(hd$heart_rate, na.rm = TRUE)
@@ -486,6 +545,60 @@ server <- function(input, output, session) {
              paste("✅ Loaded", circuits, " Circuits - Total Time:", hs$total_time_formatted)
     )
   })
+  
+  hyrox_template <- reactiveVal(
+    data.frame(
+      station = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"),
+      time = rep("04:00", 16),
+      avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28"),
+      stringsAsFactors = FALSE
+    )
+  )
+  
+  output$hyrox_manual_table <- renderDT({
+    datatable(
+      hyrox_template(),
+      editable = list(target = "cell", disable = list(columns = c(0))), # only 'time' editable
+      rownames = FALSE,
+      options = list(dom = 't', pageLength = 16) # show all rows
+    )
+  })
+  
+  observeEvent(input$hyrox_manual_table_cell_edit, {
+    info <- input$hyrox_manual_table_cell_edit
+    df <- hyrox_template()
+    df[info$row, info$col + 1] <- info$value   # DT uses 0-index for col
+    hyrox_template(df)
+  })
+  
+  manual_hyrox_data <- reactive({
+    req(input$hyrox_input_mode == "manual")
+    
+    df <- hyrox_template()
+    
+    df <- df %>%
+      mutate(
+        seconds_elapsed = as.numeric(str_extract(time, "^[0-9]+")) * 60 +
+          as.numeric(str_extract(time, "(?<=:)\\d+(\\.\\d+)?")),
+        avg_seconds_elapsed = as.numeric(str_extract(avg_time, "^[0-9]+")) * 60 +
+          as.numeric(str_extract(avg_time, "(?<=:)\\d+(\\.\\d+)?"))
+      ) %>%
+      rename(phase = station) %>%
+      mutate(
+        duration_mins = seconds_elapsed / 60,
+        duration_formatted = sprintf("%02d:%02d", seconds_elapsed %/% 60, round(seconds_elapsed %% 60))
+      ) %>%
+      mutate(seconds_difference = avg_seconds_elapsed - seconds_elapsed,
+             diff_sec_formatted = format_mm_ss(seconds_difference),
+             faster = seconds_difference >= 0,
+             cum_avg_seconds = cumsum(seconds_difference))
+    
+    df$phase <- factor(df$phase, levels = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"))
+    
+    df
+  })
+  
+  
   
   # Generate plots
   output$pace_plot <- renderPlot({
@@ -657,12 +770,24 @@ server <- function(input, output, session) {
     plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge)
   })
   
+  #### Manual #####
+  
+  output$avg_plot_hyrox_manual <- renderPlot({
+    req(manual_hyrox_data())
+    
+    plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual)
+  })
+  
   output$combined_plot_hyrox <- renderPlot({
     req(hyrox_summaries())
     hs <- hyrox_summaries()
 
     p_circuit_hyrox <- plot_circuit_splits(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
+    if (input$hyrox_input_mode != "manual") {
     p_average_hyrox <- plot_hyrox_average(hs$circuit_splits, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds, nudge_text = input$label_nudge)
+    } else {
+      p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual)
+    }
     p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer)
     p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
 

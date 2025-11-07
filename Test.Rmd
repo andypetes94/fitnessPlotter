@@ -31,6 +31,7 @@ library(patchwork)
 library(tools)
 library(fuzzyjoin)
 
+
 # Source plotting helpers
 source("R/Plot_Runs.R")
 
@@ -41,15 +42,22 @@ source("R/Plot_Runs.R")
 
 #file <- ('/Users/andrewpeters/Desktop/Garmin/Data/hyrox_avg_based.tcx')
 
-file <- ('./activities/Sample_HIIT.tcx')
+#file <- ('./activities/Sample_HIIT.tcx')
 
-file <- ('/Users/andrewpeters/Downloads/heated_polar.tcx')
+#file <- ('/Users/andrewpeters/Downloads/heated_polar.tcx')
 
 ```
 
 
  
 ```{r}
+
+df <- data.frame(
+      station = c("Run 1","SkiErg","Run 2","Sled Push","Run 3","Sled Pull","Run 4","Burpees","Run 5","Row","Run 6","Farmers Carry","Run 7","Lunges","Run 8","Wall Balls"),
+      time = rep("03:00", 16),
+      avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28"),
+      stringsAsFactors = FALSE
+    )
 
 # ---- 1. Read and parse TCX file ----
 tcx_xml <- read_xml(file)
@@ -121,6 +129,8 @@ tcx_xml <- read_xml(file)
     ungroup()
 
 ```
+
+
 
 
 ```{r}
@@ -326,6 +336,28 @@ km_splits <- hiit_joined %>%
     ) %>%
   left_join(avg_hyrox, by = c('phase' = 'phase')) %>%
   mutate(seconds_difference = avg_seconds - duration_secs,
+         diff_sec_formatted = format_mm_ss(seconds_difference),
+         faster = seconds_difference >= 0,
+         cum_avg_seconds = cumsum(seconds_difference))
+
+```
+
+
+```{r}
+
+km_splits <- df %>%
+  mutate(
+    seconds_elapsed = as.numeric(str_extract(time, "^[0-9]+")) * 60 +
+                      as.numeric(str_extract(time, "(?<=:)\\d+(\\.\\d+)?")),
+    avg_seconds_elapsed = as.numeric(str_extract(avg_time, "^[0-9]+")) * 60 +
+                          as.numeric(str_extract(avg_time, "(?<=:)\\d+(\\.\\d+)?"))
+  ) %>%
+    rename(phase = station) %>%
+    mutate(
+      duration_mins = seconds_elapsed / 60,
+      duration_formatted = sprintf("%02d:%02d", seconds_elapsed %/% 60, round(seconds_elapsed %% 60))
+    ) %>%
+  mutate(seconds_difference = avg_seconds_elapsed - seconds_elapsed,
          diff_sec_formatted = format_mm_ss(seconds_difference),
          faster = seconds_difference >= 0,
          cum_avg_seconds = cumsum(seconds_difference))
