@@ -46,9 +46,9 @@ mytheme <- create_theme(
 
 # --- UI ---
 ui <- dashboardPage(
+  title = "fitnessPlotter",
   # --- Header ---
   dashboardHeader(
-    #title = "fitnessPlotter",
     title = tags$div(tags$img(src = "logo_white.png", height = "30px")),
     
     dropdownMenu(
@@ -68,6 +68,10 @@ ui <- dashboardPage(
   
   # --- Body ---
   dashboardBody(
+    tags$head(
+      tags$title("fitnessPlotter"),
+      tags$link(rel="icon", type="image/png", href="logo_black_only.png")
+    ),
     # Send screen width to Shiny
     tags$script(HTML("
     $(document).on('shiny:connected', function() {
