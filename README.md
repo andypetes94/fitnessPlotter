@@ -61,6 +61,7 @@ Below are sample output charts generated from a sample `.tcx` file:
 | HR Bins | ![HR Bins](Charts/sample_cardio/hr_bins_hiit.png) |
 | HYROX Splits | ![HYROX Splits](Charts/sample_hyrox/avg_hyrox.png) |
 | Combined HYROX | ![Combined HYROX](Charts/sample_hyrox/combined_hyrox.png) |
+| Combined Cardio | ![Combined Cardio](Charts/sample_cardio/Cardio_Visual.png) |
 
 ---
 
