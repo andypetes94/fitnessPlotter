@@ -5,7 +5,7 @@ account: andypetes
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 15869414
-bundleId: 11146656
+bundleId: 11194888
 url: https://andypetes.shinyapps.io/fitnessPlotter/
 version: 1
 asMultiple: FALSE

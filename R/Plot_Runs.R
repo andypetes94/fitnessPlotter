@@ -592,11 +592,11 @@ plot_hyrox_average <- function(circuit_splits, total_time_formatted, start_date,
                           avg_time = c("5:02","4:35","4:44","3:27","5:08","5:05", "3:43","5:06","5:17","4:50","5:09","2:18","5:24","5:20","5:48","7:28")) %>%
     mutate(avg_seconds = as.numeric(ms(avg_time)))
   
-  format_mm_ss <- function(x) {
-    sign <- ifelse(x < 0, "-", "")
-    x_abs <- abs(x)
-    sprintf("%s%02d:%02d", sign, x_abs %/% 60, x_abs %% 60)
-  }
+  # format_mm_ss <- function(x) {
+  #   sign <- ifelse(x < 0, "-", "")
+  #   x_abs <- abs(x)
+  #   sprintf("%s%02d:%02d", sign, x_abs %/% 60, x_abs %% 60)
+  # }
   
   circuit_splits_updated <- circuit_splits %>%
     left_join(avg_hyrox, by = c('phase' = 'phase')) %>%
@@ -739,10 +739,10 @@ plot_hr_binned <- function(hiit_binned, total_time_formatted, start_date, sizes,
     
     # HR Reference Lines
     geom_hline(yintercept = total_hr, linetype = 'dashed', color = "#D91656") +
-    geom_hline(yintercept = avg_total_hr, linetype = "dashed", color = "gray80") +
+    #geom_hline(yintercept = avg_total_hr, linetype = "dashed", color = "gray80") +
     
     # HR Reference Text
-    geom_shadowtext(data = data.frame(x = x_left + x_offset, y = avg_total_hr, Zone_Label = NA), aes(x = x, y = y), label = paste0("Avg HR: ", round(avg_total_hr, digits = 0), " bpm"), hjust = 0,vjust = -0.3, size = 4, family = "Lato",color = "gray", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
+    #geom_shadowtext(data = data.frame(x = x_left + x_offset, y = avg_total_hr, Zone_Label = NA), aes(x = x, y = y), label = paste0("Avg HR: ", round(avg_total_hr, digits = 0), " bpm"), hjust = 0,vjust = -0.3, size = 4, family = "Lato",color = "gray", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
     geom_shadowtext(data = data.frame(x = x_left + x_offset, y = total_hr, Zone_Label = NA), aes(x = x, y = y), label = paste0("Max HR: ", total_hr, " bpm"), hjust = 0, vjust = 1.3, size = 4, family = "Lato", color = "#D91656", fontface = "bold", bg.colour = "white", bg.r = 0.03) +
     
     scale_fill_manual(breaks = c("Zone 1","Zone 2","Zone 3", "Zone 4", "Zone 5"),

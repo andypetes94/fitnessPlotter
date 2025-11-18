@@ -19,6 +19,12 @@ source("R/Plot_Runs.R")
 
 tmap_mode("view")  # set globally, once
 
+format_mm_ss <- function(x) {
+  sign <- ifelse(x < 0, "-", "")
+  x_abs <- abs(x)
+  sprintf("%s%02d:%02d", sign, x_abs %/% 60, x_abs %% 60)
+}
+
 # --- Define custom theme ---
 mytheme <- create_theme(
   adminlte_color(
