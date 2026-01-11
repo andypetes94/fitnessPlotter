@@ -10,6 +10,7 @@
 Run visualisation & performance analytics tool built with **R Shiny**, designed for runners, HIIT, and HYROX enthusiasts.
 
 App can be found here: 🚀 [Launch fitnessPlotter](https://andypetes.shinyapps.io/fitnessPlotter/)
+
 ---
 
 ## 📌 About
