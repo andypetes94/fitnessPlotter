@@ -67,8 +67,45 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Run Activities", tabName = "runs", icon = icon("running")),
-      menuItem("Cardio / HYROX", tabName = "hiit", icon = icon("fire"))
-      #menuItem("HYROX Workouts", tabName = "hyrox", icon = icon("dumbbell"))
+      menuItem("Cardio / HYROX", tabName = "hiit", icon = icon("fire")),
+      
+      # Radio buttons for method selection
+      radioButtons(
+        inputId = "hr_method",
+        label = "Select Heart Rate Method:",
+        choices = c(
+          "BPM" = "bpm",
+          "%Max HR" = "max_hr",
+          "%HRR" = "hrr",
+          "%LTHR" = "lthr"
+        ),
+        selected = "max_hr"
+      ),
+      
+      # Conditional inputs
+      conditionalPanel(
+        condition = "input.hr_method == 'bpm'",
+        numericInput("bpm_z2", "Zone 2 starts at (bpm)", value = 120, min = 1, step = 1),
+        numericInput("bpm_z3", "Zone 3 starts at (bpm)", value = 140, min = 1, step = 1),
+        numericInput("bpm_z4", "Zone 4 starts at (bpm)", value = 160, min = 1, step = 1),
+        numericInput("bpm_z5", "Zone 5 starts at (bpm)", value = 180, min = 1, step = 1)
+      ),
+      
+      conditionalPanel(
+        condition = "input.hr_method == 'max_hr'",
+        numericInput("max_hr", tagList("Maximum Heart Rate (HRmax)", tags$br(), "Estimate: 220 - Age"), value = 190)
+      ),
+      
+      conditionalPanel(
+        condition = "input.hr_method == 'hrr'",
+        numericInput("max_hr", tagList("Maximum Heart Rate (HRmax)", tags$br(), "Estimate: 220 - Age"), value = 190),
+        numericInput("hrr_hrrest", "Resting Heart Rate (HRrest)", value = 60)
+      ),
+      
+      conditionalPanel(
+        condition = "input.hr_method == 'lthr'",
+        numericInput("lthr", "Lactate Threshold HR (LTHR)", value = 170)
+      )
     )
   ),
   
@@ -129,8 +166,10 @@ ui <- dashboardPage(
                       fileInput("tcx_file", "Upload Run TCX File", accept = ".tcx", buttonLabel = "Browse", placeholder = "Choose a Garmin activity file...")
                     )
                   ),
-                  div(style = "margin-top: 0px;", uiOutput("activity_info"))
-                ),
+                  div(style = "margin-top: 0px;", uiOutput("activity_info")))
+                ,
+                #h3("Heart Rate Zones"),
+                #tableOutput("zones_table")),
                 style = "margin-bottom: 10px;"),
               
               tabsetPanel(
@@ -374,6 +413,51 @@ ui <- dashboardPage(
 # --- Server ---
 server <- function(input, output, session) {
   
+  # Reactive: calculate zones whenever inputs change
+  zones_reactive <- reactive({
+    calculate_hr_zones(
+      HRmax = input$max_hr,
+      HRrest = input$hrr_hrrest,
+      LTHR = input$lthr,
+      bpm = c(input$bpm_zone1,
+              input$bpm_zone2,
+              input$bpm_zone3,
+              input$bpm_zone4,
+              input$bpm_zone5)
+    )
+  })
+  
+  selected_zones <- reactive({
+    req(input$hr_method)
+    
+    switch(
+      input$hr_method,
+      
+      bpm = {
+        req(input$bpm_z2, input$bpm_z3, input$bpm_z4, input$bpm_z5)
+        calculate_hr_zones("bpm",
+                           bpm_thresholds = c(input$bpm_z2, input$bpm_z3, input$bpm_z4, input$bpm_z5)
+        )
+      },
+      
+      max_hr = {
+        req(input$max_hr)
+        calculate_hr_zones("max_hr", HRmax = input$max_hr)
+      },
+      
+      hrr = {
+        req(input$hrr_hrmax, input$hrr_hrrest)
+        calculate_hr_zones("hrr", HRmax = input$hrr_hrmax, HRrest = input$hrr_hrrest)
+      },
+      
+      lthr = {
+        req(input$lthr)
+        calculate_hr_zones("lthr", LTHR = input$lthr)
+      }
+    )
+  })
+  
+  
   observeEvent(input$screen_width, {
     
     # Threshold:
@@ -417,7 +501,7 @@ server <- function(input, output, session) {
   # Reactive to read TCX file
   run_data <- reactive({
     req(current_file())
-    read_tcx_data(current_file())
+    read_tcx_data(current_file(), zones = selected_zones)
   })
   
   #-------- HIT Data ----------#
@@ -443,7 +527,7 @@ server <- function(input, output, session) {
   # Reactive to read TCX file
   hiit_data <- reactive({
     req(current_file_hiit())
-    read_tcx_data_hiit(current_file_hiit())
+    read_tcx_data_hiit(current_file_hiit(), zones = selected_zones)
   })
   
   #-------- HYROX Data ----------#
@@ -469,7 +553,7 @@ server <- function(input, output, session) {
   # Reactive to read TCX file
   hyrox_data <- reactive({
     req(current_file_hyrox())
-    read_tcx_data_hyrox(current_file_hyrox())
+    read_tcx_data_hyrox(current_file_hyrox(), zones = selected_zones)
   })
   
   
@@ -482,7 +566,7 @@ server <- function(input, output, session) {
     total_seconds <- max(rd$time_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
     start_date <- format(min(rd$time, na.rm = TRUE), "%d/%m/%Y")
-    summaries <- summarize_run_data(rd)
+    summaries <- summarize_run_data(rd, zones = selected_zones)
     list(rd = rd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, max_km = max_km,
          max_km_longer = max_km_longer,
@@ -503,7 +587,7 @@ server <- function(input, output, session) {
     total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
     start_date <- format(min(hd$time, na.rm = TRUE), "%d/%m/%Y")
-    summaries <- summarize_hiit_data(hd)
+    summaries <- summarize_hiit_data(hd, zones = selected_zones)
     list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, rounds = rounds,
          avg_total_hr = avg_total_hr,
@@ -524,7 +608,7 @@ server <- function(input, output, session) {
     total_seconds <- max(hd$seconds_elapsed, na.rm = TRUE)
     total_time_formatted <- format_total_time(total_seconds)
     start_date <- format(min(hd$time, na.rm = TRUE), "%d/%m/%Y")
-    summaries <- summarize_hiit_data(hd)
+    summaries <- summarize_hiit_data(hd, zones = selected_zones)
     list(hd = hd, sizes = sizes, total_time_formatted = total_time_formatted,
          start_date = start_date, rounds = rounds,
          avg_total_hr = avg_total_hr,
@@ -621,7 +705,7 @@ server <- function(input, output, session) {
   output$hr_line_plot <- renderPlot({
     req(run_summaries())
     rs <- run_summaries()
-    plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer)
+    plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer, zones = selected_zones())
   })
   
   output$hr_stacked_plot <- renderPlot({
@@ -637,7 +721,7 @@ server <- function(input, output, session) {
     p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) +
       labs(caption = NULL)
     
-    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer) +
+    p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer, zones = selected_zones()) +
       labs(caption = NULL)
     
     p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km)
@@ -684,7 +768,7 @@ server <- function(input, output, session) {
     
     rounds <- length(unique(hr_df_avg_filtered$phase))
     
-    plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer)
+    plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer, zones = selected_zones())
   })
   
   output$hr_stacked_plot_hiit <- renderPlot({
@@ -747,7 +831,7 @@ server <- function(input, output, session) {
     rounds <- length(unique(circuit_splits_filtered$phase))
 
     p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
-    p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+    p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()) + labs(caption = NULL)
     p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
     p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
 
@@ -770,7 +854,7 @@ server <- function(input, output, session) {
     hs <- hyrox_summaries()
     
     
-    plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer)
+    plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer, zones = selected_zones())
   })
   
   output$hr_stacked_plot_hyrox <- renderPlot({
@@ -806,7 +890,7 @@ server <- function(input, output, session) {
     } else {
       p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual) + labs(caption = NULL)
     }
-    p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+    p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()) + labs(caption = NULL)
     p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
 
     combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox)
@@ -827,7 +911,7 @@ server <- function(input, output, session) {
     filename = function() "hr_line_plot.png",
     content = function(file) {
       rs <- run_summaries()
-      ggsave(file, plot = plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer),
+      ggsave(file, plot = plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer, zones = selected_zones()),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -846,7 +930,7 @@ server <- function(input, output, session) {
     content = function(file) {
       rs <- run_summaries()
       p_pace <- plot_km_splits(rs$km_splits, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) + labs(caption = NULL)
-      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer) + labs(caption = NULL)
+      p_hr_line <- plot_hr_line(rs$hr_df_avg, rs$total_time_formatted, rs$start_date, rs$max_km, rs$sizes, rs$max_km_longer, zones = selected_zones()) + labs(caption = NULL)
       p_hr_stacked <- plot_hr_stacked(rs$hr_stacked_bar, rs$total_time_formatted, rs$start_date, rs$sizes, rs$max_km_longer, rs$max_km) + labs(caption = NULL)
       ggsave(file, plot = combine_run_plots(p_pace, p_hr_line, p_hr_stacked),
              width = 10, height = 12, dpi = 300)
@@ -890,7 +974,7 @@ server <- function(input, output, session) {
       
       rounds <- length(unique(hr_df_avg_filtered$phase))
       
-      ggsave(file, plot = plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer),
+      ggsave(file, plot = plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -943,7 +1027,7 @@ server <- function(input, output, session) {
       rounds <- length(unique(circuit_splits_filtered$phase))
       
       p_circuit_hiit <- plot_circuit_splits(circuit_splits_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
-      p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+      p_hr_line_hiit <- plot_hr_line_hiit(hr_df_avg_filtered, hs$total_time_formatted, hs$start_date, rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()) + labs(caption = NULL)
       p_hr_stacked_hiit <- plot_hr_stacked_hiit(plot_hr_stacked_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds) + labs(caption = NULL)
       p_hr_bins_hiit <- plot_hr_binned(plot_hiit_binned_filtered, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, rounds, hs$avg_total_hr, hs$total_hr)
       
@@ -991,7 +1075,7 @@ server <- function(input, output, session) {
       hs <- hyrox_summaries()
       
       
-      ggsave(file, plot = plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer),
+      ggsave(file, plot = plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()),
              width = 8, height = 6, dpi = 300)
     }
   )
@@ -1043,7 +1127,7 @@ server <- function(input, output, session) {
       } else {
         p_average_hyrox <- plot_hyrox_average_manual(manual_hyrox_data(), nudge_text = input$label_nudge_manual) + labs(caption = NULL)
       }
-      p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer) + labs(caption = NULL)
+      p_hr_line_hyrox <- plot_hr_line_hiit(hs$hr_df_avg, hs$total_time_formatted, hs$start_date, hs$rounds, hs$sizes, hs$max_km_longer, zones = selected_zones()) + labs(caption = NULL)
       p_hr_stacked_hyrox <- plot_hr_stacked_hiit(hs$hr_stacked_bar, hs$total_time_formatted, hs$start_date, hs$sizes, hs$max_km_longer, hs$rounds)
       
       ggsave(file, plot = combine_hyrox_plots(p_circuit_hyrox, p_average_hyrox, p_hr_line_hyrox, p_hr_stacked_hyrox),

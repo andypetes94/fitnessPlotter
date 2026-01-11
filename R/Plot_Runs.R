@@ -12,11 +12,59 @@ library(rvest)
 library(patchwork)
 library(tools)
 
+# ---- Calculate Heart Rate Zones ----
+calculate_hr_zones <- function(method = c("bpm","max_hr","hrr","lthr"),
+                               HRmax = NULL, HRrest = NULL, LTHR = NULL,
+                               bpm_thresholds = NULL) {
+  method <- match.arg(method)
+  
+  if (method == "bpm") {
+    if (is.null(bpm_thresholds) || length(bpm_thresholds) != 4) {
+      stop("bpm_thresholds must have 4 values: Z2..Z5")
+    }
+    thr <- as.numeric(bpm_thresholds)
+    
+    data.frame(
+      Zone  = paste0("Zone ", 1:5),
+      Lower = c(NA, thr),                 # Zone 1 lower can be NA/0 depending on your preference
+      Upper = c(thr[1], thr[2], thr[3], thr[4], thr[4] + 20)
+    )
+  } else if (method == "max_hr") {
+    if (is.null(HRmax)) stop("HRmax required")
+    pct <- matrix(c(50,60, 60,70, 70,80, 80,90, 90,100), ncol=2, byrow=TRUE)
+    data.frame(Zone=paste0("Zone ",1:5), Lower=HRmax*pct[,1]/100, Upper=HRmax*pct[,2]/100)
+  } else if (method == "hrr") {
+    if (is.null(HRmax) || is.null(HRrest)) stop("HRmax and HRrest required")
+    pct <- matrix(c(50,60, 60,70, 70,80, 80,90, 90,100), ncol=2, byrow=TRUE)
+    data.frame(Zone=paste0("Zone ",1:5),
+               Lower=HRrest+(HRmax-HRrest)*pct[,1]/100,
+               Upper=HRrest+(HRmax-HRrest)*pct[,2]/100)
+  } else { # lthr
+    if (is.null(LTHR)) stop("LTHR required")
+    
+    # Consecutive (no gaps): 0–85, 85–90, 90–95, 95–100, 100–110 (% of LTHR)
+    pct <- matrix(c(
+      0,   85,
+      85,  90,
+      90,  95,
+      95,  100,
+      100, 110
+    ), ncol = 2, byrow = TRUE)
+    
+    return(data.frame(
+      Zone  = paste0("Zone ", 1:5),
+      Lower = LTHR * pct[, 1] / 100,
+      Upper = LTHR * pct[, 2] / 100
+    ))
+  }
+
+}
+
 # ---- Font setup ----
 fa_font <- "Font Awesome 7 Free"
 
 # ---- 1. Read and parse TCX file ----
-read_tcx_data <- function(file) {
+read_tcx_data <- function(file, zones) {
   tcx_xml <- read_xml(file)
   xml_ns_strip(tcx_xml)
   
@@ -48,17 +96,26 @@ read_tcx_data <- function(file) {
   run_data <- run_data %>%
     mutate(
       time = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
-      Zone_Label = case_when(
-        heart_rate > 171 ~ "Zone 5",
-        heart_rate > 153 ~ "Zone 4",
-        heart_rate > 134 ~ "Zone 3",
-        heart_rate > 115 ~ "Zone 2",
-        TRUE ~ "Zone 1"
-      ),
+      # Zone_Label = case_when(
+      #   heart_rate > 171 ~ "Zone 5",
+      #   heart_rate > 153 ~ "Zone 4",
+      #   heart_rate > 134 ~ "Zone 3",
+      #   heart_rate > 115 ~ "Zone 2",
+      #   TRUE ~ "Zone 1",
+      Zone_Label = {
+        z <- if (is.function(zones)) zones() else zones  # reactive OR static df
+        thr <- z$Lower[2:5]
+        cut(
+          heart_rate,
+          breaks = c(-Inf, thr, Inf),
+          labels = paste0("Zone ", 1:5),
+          right = FALSE
+        )
+      },
+      
       kilometre = paste0("KM ", ceiling(distance / 1000))
     ) %>%
     {
-      # --- Conditional filtering for last kilometre ---
       max_dist <- max(.$distance, na.rm = TRUE)
       remainder <- max_dist %% 1000
       
@@ -73,12 +130,13 @@ read_tcx_data <- function(file) {
   
   run_data$kilometre <- factor(run_data$kilometre, levels = unique(run_data$kilometre))
   
+  
   return(run_data)
 }
 
 
 # ---- 1. Read and parse TCX file ----
-read_tcx_data_hiit <- function(file) {
+read_tcx_data_hiit <- function(file, zones) {
 
   tcx_xml <- read_xml(file)
   xml_ns_strip(tcx_xml)
@@ -128,14 +186,26 @@ read_tcx_data_hiit <- function(file) {
     by = c("seconds_elapsed" = "start_sec", "seconds_elapsed" = "end_sec"),
     match_fun = list(`>=`, `<=`)
   ) %>% 
-    drop_na() %>%
-    mutate(Zone_Label = case_when(
-    heart_rate > 171 ~ "Zone 5",
-    heart_rate > 153 ~ "Zone 4",
-    heart_rate > 134 ~ "Zone 3",
-    heart_rate > 115 ~ "Zone 2",
-    TRUE ~ "Zone 1"
-  )) %>%
+  #   drop_na() %>%
+  #   mutate(Zone_Label = case_when(
+  #   heart_rate > 171 ~ "Zone 5",
+  #   heart_rate > 153 ~ "Zone 4",
+  #   heart_rate > 134 ~ "Zone 3",
+  #   heart_rate > 115 ~ "Zone 2",
+  #   TRUE ~ "Zone 1"
+  # )) %>%
+    mutate(
+      Zone_Label = {
+        z <- if (is.function(zones)) zones() else zones  # reactive OR static df
+        thr <- z$Lower[2:5]
+        cut(
+          heart_rate,
+          breaks = c(-Inf, thr, Inf),
+          labels = paste0("Zone ", 1:5),
+          right = FALSE
+        )
+      }
+    ) %>%
     mutate(time_bin = floor(seconds_elapsed / 10)) 
   
   hiit_joined$phase <- factor(hiit_joined$phase, levels = c("Warm", seq(1,nrow(hiit_metadata) -1,1)))
@@ -145,7 +215,7 @@ read_tcx_data_hiit <- function(file) {
 }
 
 # ---- 1. Read and parse TCX file ----
-read_tcx_data_hyrox <- function(file) {
+read_tcx_data_hyrox <- function(file, zones) {
   
   tcx_xml <- read_xml(file)
   xml_ns_strip(tcx_xml)
@@ -196,13 +266,25 @@ read_tcx_data_hyrox <- function(file) {
     match_fun = list(`>=`, `<=`)
   ) %>% 
     drop_na() %>%
-    mutate(Zone_Label = case_when(
-      heart_rate > 171 ~ "Zone 5",
-      heart_rate > 153 ~ "Zone 4",
-      heart_rate > 134 ~ "Zone 3",
-      heart_rate > 115 ~ "Zone 2",
-      TRUE ~ "Zone 1"
-    )) %>%
+    # mutate(Zone_Label = case_when(
+    #   heart_rate > 171 ~ "Zone 5",
+    #   heart_rate > 153 ~ "Zone 4",
+    #   heart_rate > 134 ~ "Zone 3",
+    #   heart_rate > 115 ~ "Zone 2",
+    #   TRUE ~ "Zone 1"
+    # )) %>%
+    mutate(
+      Zone_Label = {
+        z <- if (is.function(zones)) zones() else zones  # reactive OR static df
+        thr <- z$Lower[2:5]
+        cut(
+          heart_rate,
+          breaks = c(-Inf, thr, Inf),
+          labels = paste0("Zone ", 1:5),
+          right = FALSE
+        )
+      }
+    ) %>%
     mutate(time_bin = floor(seconds_elapsed / 10)) 
   
   hiit_joined$phase <- factor(hiit_joined$phase, levels = unique(hiit_joined$phase))
@@ -254,9 +336,13 @@ get_plot_sizes <- function(max_km) {
 }
 
 # ---- 4. Summarize data for plots ----
-summarize_run_data <- function(run_data) {
+summarize_run_data <- function(run_data, zones) {
+  
+  z <- if (is.function(zones)) zones() else zones
+  thr <- z$Lower[2:5]
+  
   hr_stacked_bar <- run_data %>%
-    mutate(Zone_Label = factor(Zone_Label, levels = c("Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"))) %>%
+    mutate(Zone_Label = factor(Zone_Label, levels = c("Zone 5","Zone 4","Zone 3","Zone 2","Zone 1"))) %>%
     group_by(kilometre, Zone_Label) %>%
     summarise(avg_hr = mean(heart_rate), avg_count = n(), .groups = "drop") %>%
     group_by(kilometre) %>%
@@ -266,13 +352,14 @@ summarize_run_data <- function(run_data) {
   hr_df_avg <- run_data %>%
     group_by(kilometre) %>%
     summarise(avg_hr = mean(heart_rate), .groups = "drop") %>%
-    mutate(Zone_Label = case_when(
-      avg_hr > 171 ~ "Zone 5",
-      avg_hr > 153 ~ "Zone 4",
-      avg_hr > 134 ~ "Zone 3",
-      avg_hr > 115 ~ "Zone 2",
-      TRUE ~ "Zone 1"
-    ))
+    mutate(
+      Zone_Label = cut(
+        avg_hr,
+        breaks = c(-Inf, thr, Inf),
+        labels = paste0("Zone ", 1:5),
+        right = FALSE
+      )
+    )
   
   km_splits <- run_data %>%
     group_by(kilometre) %>%
@@ -287,13 +374,22 @@ summarize_run_data <- function(run_data) {
     )
   
   map_runs_df <- run_data %>%
-    mutate(time_POSIXct = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ",tz = "UTC")) %>%
+    mutate(time_POSIXct = as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")) %>%
     mutate(time_sec = as.numeric(time_POSIXct - min(time_POSIXct, na.rm = TRUE)))
   
-  return(list(hr_stacked_bar = hr_stacked_bar, hr_df_avg = hr_df_avg, km_splits = km_splits, map_runs_df = map_runs_df))
+  list(
+    hr_stacked_bar = hr_stacked_bar,
+    hr_df_avg = hr_df_avg,
+    km_splits = km_splits,
+    map_runs_df = map_runs_df
+  )
 }
 
-summarize_hiit_data <- function(hiit_data) {
+
+summarize_hiit_data <- function(hiit_data, zones) {
+  
+  z <- if (is.function(zones)) zones() else zones
+  thr <- z$Lower[2:5]  # Zone 2–5 entry points
   
   hr_stacked_bar <- hiit_data %>%
     mutate(Zone_Label = factor(Zone_Label, levels = c("Zone 5", "Zone 4", "Zone 3", "Zone 2", "Zone 1"))) %>%
@@ -306,14 +402,14 @@ summarize_hiit_data <- function(hiit_data) {
   hr_df_avg <- hiit_data %>%
     group_by(phase) %>%
     summarise(avg_hr = mean(heart_rate), .groups = "drop") %>%
-    mutate(Zone_Label = case_when(
-      avg_hr > 171 ~ "Zone 5",
-      avg_hr > 153 ~ "Zone 4",
-      avg_hr > 134 ~ "Zone 3",
-      avg_hr > 115 ~ "Zone 2",
-      TRUE ~ "Zone 1"
-    ))
-  
+    mutate(
+      Zone_Label = cut(
+        avg_hr,
+        breaks = c(-Inf, thr, Inf),
+        labels = paste0("Zone ", 1:5),
+        right = FALSE
+      )
+    )
   
   circuit_splits <- hiit_data %>%
     group_by(phase) %>%
@@ -329,12 +425,20 @@ summarize_hiit_data <- function(hiit_data) {
   
   hiit_binned <- hiit_data %>%
     group_by(time_bin) %>%
-    reframe(heart_rate = mean(heart_rate),
-            Zone_Label = dplyr::last(Zone_Label),
-            phase = dplyr::last(phase))
+    reframe(
+      heart_rate = mean(heart_rate),
+      Zone_Label = dplyr::last(Zone_Label),
+      phase = dplyr::last(phase)
+    )
   
-  return(list(hr_stacked_bar = hr_stacked_bar, hr_df_avg = hr_df_avg, circuit_splits = circuit_splits, hiit_binned = hiit_binned))
+  list(
+    hr_stacked_bar = hr_stacked_bar,
+    hr_df_avg = hr_df_avg,
+    circuit_splits = circuit_splits,
+    hiit_binned = hiit_binned
+  )
 }
+
 
 # ---- 5. Plot functions ----
 plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, sizes, max_km_longer, max_km) {
@@ -372,18 +476,74 @@ plot_hr_stacked <- function(hr_stacked_bar, total_time_formatted, start_date, si
     )
 }
 
-plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes, max_km_longer) {
+plot_hr_line <- function(hr_df_avg, total_time_formatted, start_date, max_km, sizes, max_km_longer, zones) {
+  
+  # --- Dynamic y-limits based on zones + data ---
+  z5_upper_cfg <- zones$Upper[zones$Zone == "Zone 5"][1]
+  
+  # Highest plotted point (or swap to max(run_data$heart_rate, na.rm=TRUE) if preferred)
+  y_top_raw <- max(hr_df_avg$avg_hr, na.rm = TRUE)
+  
+  # If Zone 5 upper is missing/Inf, ignore it; otherwise use it
+  z5_upper_finite <- if (is.na(z5_upper_cfg) || is.infinite(z5_upper_cfg)) NA_real_ else z5_upper_cfg
+  
+  # Effective Zone 5 upper: if data exceeds Zone 5 upper, use the data max
+  z5_upper_eff <- max(z5_upper_finite, y_top_raw, na.rm = TRUE)
+  
+  # Plot top uses that effective Zone 5 upper, rounded up to nearest 5
+  y_top <- ceiling(z5_upper_eff / 5) * 5
+  
+  # Bottom: lower of data-min (rounded down) and Zone 3 lower (then add padding)
+  y_bottom_data <- floor(min(hr_df_avg$avg_hr, na.rm = TRUE) / 5) * 5
+  z3_lower <- zones$Lower[zones$Zone == "Zone 3"][1]
+  y_bottom <- min(y_bottom_data, z3_lower, na.rm = TRUE)
+  
+  # --- Rectangle bands for Zones 3-5, clipped to plot window ---
+  rect_df <- zones %>%
+    dplyr::filter(Zone %in% c("Zone 3", "Zone 4", "Zone 5")) %>%
+    dplyr::mutate(
+      xmin = 0.5,
+      xmax = max_km + 0.5,
+      
+      # Ensure Zone 5 has a finite upper; use the effective upper so it can reach data max if needed
+      Upper = dplyr::case_when(
+        Zone == "Zone 5" ~ z5_upper_eff,
+        is.na(Upper) ~ y_top,
+        TRUE ~ Upper
+      ),
+      
+      ymin_plot = pmax(Lower, y_bottom),
+      ymax_plot = pmin(Upper, y_top)
+    ) %>%
+    dplyr::filter(ymax_plot > ymin_plot)
+  
+  
   ggplot(hr_df_avg, aes(x = kilometre, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
     geom_vline(xintercept = seq(0.5, max_km + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = max_km + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
+    # geom_rect(
+    #   data = rect_df,
+    #   aes(xmin = xmin, xmax = xmax, ymin = Lower, ymax = Upper, fill = Zone, color = Zone, show.legend = F),
+    #   inherit.aes = FALSE,
+    #   alpha = 0.05,
+    #   show.legend = FALSE
+    # ) +
+    geom_rect(
+      data = rect_df,
+      aes(xmin = xmin, xmax = xmax, ymin = ymin_plot, ymax = ymax_plot, fill = Zone, color = Zone),
+      inherit.aes = FALSE,
+      alpha = 0.05,
+      show.legend = FALSE
+    ) +
+  
+    coord_cartesian(ylim = c(y_bottom, y_top)) +
     geom_line(group = 1, color = 'black', linewidth = sizes$geom_line_width, alpha = 0.2) +
     geom_line(group = 1, color = 'white', linewidth = (sizes$geom_line_width * (2/3))) +
     geom_point(shape = 21, size = sizes$geom_point_size, color = "white", stroke = sizes$geom_point_stroke, show.legend = F) +
     geom_text(aes(label = round(avg_hr)), size = sizes$point_text_size,
               color = "white", family = "Lato", fontface = "bold") +
-    scale_y_continuous(limits = c(134, 190)) +
     scale_fill_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),,
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     scale_color_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),,
@@ -476,18 +636,66 @@ plot_hr_stacked_hiit <- function(hr_stacked_bar, total_time_formatted, start_dat
     )
 }
 
-plot_hr_line_hiit <- function(hr_df_avg, total_time_formatted, start_date, rounds, sizes, max_km_longer) {
+plot_hr_line_hiit <- function(hr_df_avg, total_time_formatted, start_date, rounds, sizes, max_km_longer, zones) {
+  
+  # --- Dynamic y-limits based on zones + data ---
+  z5_upper_cfg <- zones$Upper[zones$Zone == "Zone 5"][1]
+  
+  # Highest plotted point (or swap to max(run_data$heart_rate, na.rm=TRUE) if preferred)
+  y_top_raw <- max(hr_df_avg$avg_hr, na.rm = TRUE)
+  
+  # If Zone 5 upper is missing/Inf, ignore it; otherwise use it
+  z5_upper_finite <- if (is.na(z5_upper_cfg) || is.infinite(z5_upper_cfg)) NA_real_ else z5_upper_cfg
+  
+  # Effective Zone 5 upper: if data exceeds Zone 5 upper, use the data max
+  z5_upper_eff <- max(z5_upper_finite, y_top_raw, na.rm = TRUE)
+  
+  # Plot top uses that effective Zone 5 upper, rounded up to nearest 5
+  y_top <- ceiling(z5_upper_eff / 5) * 5
+  
+  # Bottom: lower of data-min (rounded down) and Zone 3 lower (then add padding)
+  y_bottom_data <- floor(min(hr_df_avg$avg_hr, na.rm = TRUE) / 5) * 5
+  z3_lower <- zones$Lower[zones$Zone == "Zone 3"][1]
+  y_bottom <- min(y_bottom_data, z3_lower, na.rm = TRUE)
+  
+  # --- Rectangle bands for Zones 3-5, clipped to plot window ---
+  rect_df <- zones %>%
+    dplyr::filter(Zone %in% c("Zone 3", "Zone 4", "Zone 5")) %>%
+    dplyr::mutate(
+      xmin = 0.5,
+      xmax = rounds + 0.5,
+      
+      # Ensure Zone 5 has a finite upper; use the effective upper so it can reach data max if needed
+      Upper = dplyr::case_when(
+        Zone == "Zone 5" ~ z5_upper_eff,
+        is.na(Upper) ~ y_top,
+        TRUE ~ Upper
+      ),
+      
+      ymin_plot = pmax(Lower, y_bottom),
+      ymax_plot = pmin(Upper, y_top)
+    ) %>%
+    dplyr::filter(ymax_plot > ymin_plot)
+  
   ggplot(hr_df_avg, aes(x = phase, y = avg_hr, color = Zone_Label, fill = Zone_Label)) +
     geom_vline(xintercept = seq(0.5, rounds + 0.5, 1), color = "gray90", linewidth = 0.5, linetype = "dashed") +
-    geom_rect(aes(xmin = 0.5, xmax = rounds + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = rounds+ 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
-    geom_rect(aes(xmin = 0.5, xmax = rounds + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = rounds + 0.5, ymin = 134, ymax = 153), fill = "#FFB200", color = "#FFB200", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = rounds+ 0.5, ymin = 153, ymax = 171), fill = "#EB5B00", color = "#EB5B00", alpha = 0.05, show.legend = F) +
+    # geom_rect(aes(xmin = 0.5, xmax = rounds + 0.5, ymin = 171, ymax = 190), fill = "#D91656", color = "#D91656", alpha = 0.05, show.legend = F) +
+    geom_rect(
+      data = rect_df,
+      aes(xmin = xmin, xmax = xmax, ymin = Lower, ymax = Upper, fill = Zone, color = Zone, alpha = 0.05, show.legend = F),
+      inherit.aes = FALSE,
+      alpha = 0.05,
+      show.legend = FALSE
+    ) +
+    coord_cartesian(ylim = c(y_bottom, y_top)) +
     geom_line(group = 1, color = 'black', linewidth = sizes$geom_line_width, alpha = 0.2) +
     geom_line(group = 1, color = 'white', linewidth = (sizes$geom_line_width * (2/3))) +
     geom_point(shape = 21, size = sizes$geom_point_size, color = "white", stroke = sizes$geom_point_stroke, show.legend = F) +
     geom_text(aes(label = round(avg_hr)), size = sizes$point_text_size,
               color = "white", family = "Lato", fontface = "bold") +
-    scale_y_continuous(limits = c(134, 190)) +
+    #scale_y_continuous(limits = c(134, 190)) +
     scale_fill_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),,
                       values = c("gray", "#FFB200", "#EB5B00", "#D91656")) +
     scale_color_manual(breaks = c("Other", "Zone 3", "Zone 4", "Zone 5"),,
